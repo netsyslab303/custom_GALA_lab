@@ -1,9 +1,12 @@
+import copy
+
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
 import scipy.sparse as ss
 import os, time, argparse
 import pickle
+import random
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import op_util
@@ -14,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 args = parser.parse_args()
 batch = 256
-num_data = 256*250
+num_data = 256*250*2
 
 
 def making_skeleton_adj():
@@ -62,6 +65,8 @@ def normalize_data(joint_data):
     normalized_data = np.concatenate((normalized_x, normalized_y), axis=1, dtype=np.float32)
     return normalized_data
 
+def noise():
+    fdsaf
 
 def load_pkl():
     pkl_file = home_path + '/ntu60_hrnet.pkl'
@@ -84,7 +89,7 @@ def load_pkl():
     test = []
     for t in range(nn):
         normalized_data = normalize_data(joint_data[t])
-
+        print("Nosie 입력 파트를 구현했을")
         if t <= nn - (256 * 2):
             train.append(normalized_data)
         else:
@@ -115,7 +120,8 @@ if __name__ == '__main__':
 
     features, test = load_pkl()
     model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True)
-
+    model.build(input_shape=(256, 17, 2))
+    model.load_weights('Denosing_weight_onepoint.h5')
     init_step, init_loss, finetuning, validate, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
@@ -125,14 +131,20 @@ if __name__ == '__main__':
 
         best_loss = 1e12
         stopping_step = 0
-
+        print("Nosie 입력 파트를 구현했을")
         train_time = time.time()
+        #noised_inpute은 op_util.py에서 처리.
         for epoch in range(maximum_epoch):
             for num in range(len(features) // batch):
                 feature = np.array(features[num * batch:(num + 1) * batch])
                 feature = feature.reshape(-1, 17, 2)
-                init_step(feature, weight_decay, k)
+                noised_input = copy.deepcopy(feature)
+                for i in range (len(noised_input)):
+                    rnd = random.randint(0,16)
+                    noised_input[i, rnd, :] = 0
+                init_step(feature, noised_input, weight_decay, k)
             step += 1
+            model.save_weights('Denosing_weight.h5')
 
             if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                 template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
@@ -161,7 +173,8 @@ if __name__ == '__main__':
                 for v in model.variables:
                     params[v.name] = v.numpy()
                 sio.savemat(args.train_dir + '/trained_params.mat', params)
-        model.save_weights('weight.h5')
+        model.save_weights('Denosing_weight.h5')
+        print("Nosie 입력 파트를 구현했을")
 '''
         if finetune_epoch > 0:
             train_time = time.time()
