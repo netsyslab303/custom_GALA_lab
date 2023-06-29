@@ -1,3 +1,5 @@
+import copy
+
 import tensorflow as tf
 import numpy as np
 from sklearn.cluster import SpectralClustering
@@ -21,7 +23,10 @@ def Optimizer(model, LR):
     @tf.function
     def training(input, weight_decay, k):
         with tf.GradientTape() as tape:
-            generated = model(input, training = True)
+            noised_input = copy.deepcopy(input)
+            noised_input[:,9,:] = 0
+            generated = model(noised_input, training = True)
+            # 모델 입력은 noise 추가, loss 계산은 원본 Pkl.
             loss = tf.reduce_sum(tf.square(input - generated))/2/input.shape[0]
             total_loss = loss
             if weight_decay > 0.:
