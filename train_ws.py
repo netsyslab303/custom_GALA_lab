@@ -1,4 +1,5 @@
 import copy
+import math
 
 import tensorflow as tf
 import numpy as np
@@ -15,9 +16,25 @@ from nets import GALA
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
+parser.add_argument("--save_model_name", default="weight", type=str)
+parser.add_argument("--load_model", action='store_true')
+parser.add_argument("--test", action='store_false', help='for only_test')
 args = parser.parse_args()
 batch = 256
-num_data = 256*250*2
+num_data = 256 * 250 * 2
+
+
+def make_noise(input_feature):
+    noised_out = copy.deepcopy(input_feature)
+    acc_rnd = []
+    for idx in range(len(input_feature)):
+        rnd_idx = random.randint(0, 16)
+        radius = 0.05 * random.random()
+        theta = 2 * math.pi * random.random()
+        noised_out[idx, rnd_idx, 0] += radius * math.cos(theta)
+        noised_out[idx, rnd_idx, 1] += radius * math.sin(theta)
+        acc_rnd.append(rnd_idx)
+    return noised_out, acc_rnd
 
 
 def making_skeleton_adj():
@@ -65,8 +82,6 @@ def normalize_data(joint_data):
     normalized_data = np.concatenate((normalized_x, normalized_y), axis=1, dtype=np.float32)
     return normalized_data
 
-def noise():
-    fdsaf
 
 def load_pkl():
     pkl_file = home_path + '/ntu60_hrnet.pkl'
@@ -89,7 +104,7 @@ def load_pkl():
     test = []
     for t in range(nn):
         normalized_data = normalize_data(joint_data[t])
-        print("Nosie 입력 파트를 구현했을")
+
         if t <= nn - (256 * 2):
             train.append(normalized_data)
         else:
@@ -102,7 +117,7 @@ if __name__ == '__main__':
     finetune_lr = 1e-6
     weight_decay = 5e-4
     k = 20
-    maximum_epoch = 1000
+    maximum_epoch = 300
     early_stopping = 20
     finetune_epoch = 50
 
@@ -113,15 +128,16 @@ if __name__ == '__main__':
     gpus = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
-    if os.path.isfile( home_path+'/pre_built/test_skeleton.mat'):
+    if os.path.isfile(home_path + '/pre_built/test_skeleton.mat'):
         DAD = sio.loadmat(home_path + '/pre_built/test_skeleton.mat')
     else:
         DAD = get_affinity_skeleton()
 
     features, test = load_pkl()
     model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True)
-    model.build(input_shape=(256, 17, 2))
-    model.load_weights('Denosing_weight_onepoint.h5')
+    if args.load_model:
+        model.build(input_shape=(256, 17, 2))
+        model.load_weights('Denosing_weight_radius.h5')  # _onepoint
     init_step, init_loss, finetuning, validate, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
@@ -131,50 +147,52 @@ if __name__ == '__main__':
 
         best_loss = 1e12
         stopping_step = 0
-        print("Nosie 입력 파트를 구현했을")
+
         train_time = time.time()
-        #noised_inpute은 op_util.py에서 처리.
-        for epoch in range(maximum_epoch):
-            for num in range(len(features) // batch):
-                feature = np.array(features[num * batch:(num + 1) * batch])
-                feature = feature.reshape(-1, 17, 2)
-                noised_input = copy.deepcopy(feature)
-                for i in range (len(noised_input)):
-                    rnd = random.randint(0,16)
-                    noised_input[i, rnd, :] = 0
-                init_step(feature, noised_input, weight_decay, k)
-            step += 1
-            model.save_weights('Denosing_weight.h5')
+        # noised_inpute은 op_util.py에서 처리.
+        if args.test:
+            for epoch in range(maximum_epoch):
+                for num in range(len(features) // batch):
+                    feature = np.array(features[num * batch:(num + 1) * batch])
+                    feature = feature.reshape(-1, 17, 2)
+                    noised_input, _ = make_noise(feature)
+                    init_step(feature, noised_input, weight_decay, k)
+                step += 1
+                model.save_weights('{}.h5'.format(args.save_model_name))
 
-            if epoch % do_log == 0 or epoch == maximum_epoch - 1:
-                template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
-                print(template.format(step, init_loss.result(), (time.time() - train_time) / do_log))
-                train_time = time.time()
-                current_loss = init_loss.result()
-                tf.summary.scalar('Initialization/train', current_loss, step=epoch + 1)
-                init_loss.reset_states()
+                if epoch % do_log == 0 or epoch == maximum_epoch - 1:
+                    template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
+                    print(template.format(step, init_loss.result(), (time.time() - train_time) / do_log))
+                    train_time = time.time()
+                    current_loss = init_loss.result()
+                    tf.summary.scalar('Initialization/train', current_loss, step=epoch + 1)
+                    init_loss.reset_states()
 
-            if epoch % do_test == 0 or epoch == maximum_epoch - 1:
-                for num in range(len(test) // batch):
-                    tests = np.array(test[num * batch:(num + 1) * batch])
-                    tests = tests.reshape(-1, 17, 2)
-                    validate(tests, k)
-                tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
-                tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
-                tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
+                if epoch % do_test == 0 or epoch == maximum_epoch - 1:
+                    for num in range(len(test) // batch):
+                        tests = np.array(test[num * batch:(num + 1) * batch])
+                        tests = tests.reshape(-1, 17, 2)
+                        validate(tests, k)
+                    tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
+                    tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
+                    tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
 
-                template = 'Epoch: {0:3d}, NMI: {1:0.4f}, ARI.: {2:0.4f}'
-                print(template.format(epoch + 1, NMI.result(), ARI.result()))
+                    template = 'Epoch: {0:3d}, NMI: {1:0.4f}, ARI.: {2:0.4f}'
+                    print(template.format(epoch + 1, NMI.result(), ARI.result()))
 
-                NMI.reset_states()
-                ARI.reset_states()
+                    NMI.reset_states()
+                    ARI.reset_states()
 
-                params = {}
-                for v in model.variables:
-                    params[v.name] = v.numpy()
-                sio.savemat(args.train_dir + '/trained_params.mat', params)
-        model.save_weights('Denosing_weight.h5')
-        print("Nosie 입력 파트를 구현했을")
+                    params = {}
+                    for v in model.variables:
+                        params[v.name] = v.numpy()
+                    sio.savemat(args.train_dir + '/trained_params.mat', params)
+
+        else:
+            for num in range(len(test) // batch):
+                tests = np.array(test[num * batch:(num + 1) * batch])
+                tests = tests.reshape(-1, 17, 2)
+                validate(tests, k)
 '''
         if finetune_epoch > 0:
             train_time = time.time()
