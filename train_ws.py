@@ -1,6 +1,7 @@
 import copy
 import math
 
+import keras.models
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
@@ -13,6 +14,61 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import op_util
 from nets import GALA
 
+import tensorflow as tf
+import torch
+from tensorflow import keras
+
+
+class Model(tf.keras.Model):
+    def __init__(self, DAD, name='GALA', batch_size=64, trainable=True, **kwargs):
+        super(Model, self).__init__(name=name, **kwargs)
+
+        self.batch_size = batch_size
+        self.GALA = {}
+        D = [400, 300, 100]
+        inputs = keras.Input(shape=(17, 2,), name="digits")
+        for i, d in enumerate(D):
+            if i == 0:
+                self.GALA['enc%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
+                self.GALA['enc%d' % i](inputs)
+            else:
+                self.GALA['enc%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
+                self.GALA['enc%d' % i](keras.Input(shape=(17, D[i - 1],)))
+
+        if trainable:
+            for i, d in enumerate(D[1::-1] + [2]):
+                self.GALA['dec%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
+                self.GALA['dec%d' % i](keras.Input(shape=(17, D[-(i + 1)],)))
+
+        self.DADsm = tf.sparse.SparseTensor(DAD['DADsm_indices'], DAD['DADsm_values'][0], DAD['dense_shape'][0])
+        self.DADsp = tf.sparse.SparseTensor(DAD['DADsp_indices'], DAD['DADsp_values'][0], DAD['dense_shape'][0])
+
+    def Laplacian_smoothing(self, x, name, training):
+        tmp = []
+        inputs = self.GALA[name](x, training=training)
+        for i in range(len(x)):
+            tmp.append(tf.nn.relu(
+                tf.sparse.sparse_dense_matmul(self.DADsm, inputs[i])))
+        tmp = tf.convert_to_tensor(tmp)
+        return tmp
+
+    def Laplacian_sharpening(self, x, name, training):
+        tmp = []
+        for i in range(len(x)):
+            tmp.append(tf.nn.relu(tf.sparse.sparse_dense_matmul(self.DADsp, self.GALA[name](x[i], training=training))))
+        return tmp
+
+    def call(self, H, training=None):
+        for i in range(3):
+            H = self.Laplacian_smoothing(H, 'enc%d' % i, training)
+        self.H = H
+        # if training == False:
+        # return H
+        for i in range(3):
+            H = self.Laplacian_sharpening(H, 'dec%d' % i, training)
+        return H
+
+
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
@@ -20,8 +76,8 @@ parser.add_argument("--save_model_name", default="weight", type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
 args = parser.parse_args()
-batch = 256
-num_data = 256 * 250 * 2
+batch = 64
+num_data = 256 * 500
 
 
 def make_noise(input_feature):
@@ -76,11 +132,16 @@ def get_affinity_skeleton():
 
 def normalize_data(joint_data):
     # x, y 좌표를 각각 정규화
-    normalized_x = (joint_data[:, ::2]) / 1920
-    normalized_y = (joint_data[:, 1::2]) / 1080
+    joint_data[:, :, 0] /= 1920
+    joint_data[:, :, 1] /= 1080
+    return joint_data
 
-    normalized_data = np.concatenate((normalized_x, normalized_y), axis=1, dtype=np.float32)
-    return normalized_data
+def denormalize_data(joint_data):
+    # x, y 좌표를 각각 정규화
+    joint_data[:, :, 0] *= 1920
+    joint_data[:, :, 1] *= 1080
+    return joint_data
+
 
 
 def load_pkl():
@@ -90,12 +151,14 @@ def load_pkl():
 
     joint_data = []
     data = data['annotations']
+
     count = 0
 
     nn = num_data
     for num in range(len(data)):
+        normalized = normalize_data(data[num]['keypoint'][0])
         for num1 in range(0, len(data[num]['keypoint'][0]), 30):
-            joint_data.append(data[num]['keypoint'][0][num1])
+            joint_data.append(normalized[num1])
             count += 1
             if count == nn:
                 break
@@ -103,12 +166,12 @@ def load_pkl():
     train = []
     test = []
     for t in range(nn):
-        normalized_data = normalize_data(joint_data[t])
+        #normalized_data = normalize_data(joint_data[t])
 
         if t <= nn - (256 * 2):
-            train.append(normalized_data)
+            train.append(joint_data[t])
         else:
-            test.append(normalized_data)
+            test.append(joint_data[t])
     return train, test
 
 
@@ -134,11 +197,11 @@ if __name__ == '__main__':
         DAD = get_affinity_skeleton()
 
     features, test = load_pkl()
-    model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True)
+    model = Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True)
     if args.load_model:
-        model.build(input_shape=(256, 17, 2))
-        model.load_weights('Denosing_weight_radius.h5')  # _onepoint
-    init_step, init_loss, finetuning, validate, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
+        model.built = True
+        model.load_weights('weight_0707.h5', skip_mismatch=False, by_name=False, options=None)
+    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
     summary_writer = tf.summary.create_file_writer(args.train_dir)
@@ -158,7 +221,8 @@ if __name__ == '__main__':
                     noised_input, _ = make_noise(feature)
                     init_step(feature, noised_input, weight_decay, k)
                 step += 1
-                model.save_weights('{}.h5'.format(args.save_model_name))
+                model.save_weights('{}.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
+                model.save('path_to_my_model', save_format='tf')
 
                 if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                     template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
@@ -189,10 +253,7 @@ if __name__ == '__main__':
                     sio.savemat(args.train_dir + '/trained_params.mat', params)
 
         else:
-            for num in range(len(test) // batch):
-                tests = np.array(test[num * batch:(num + 1) * batch])
-                tests = tests.reshape(-1, 17, 2)
-                validate(tests, k)
+            make_pkl()
 '''
         if finetune_epoch > 0:
             train_time = time.time()

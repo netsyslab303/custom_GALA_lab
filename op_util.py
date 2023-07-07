@@ -1,7 +1,8 @@
 import copy
 import math
 import random
-
+import os
+import pickle
 import tensorflow as tf
 import numpy as np
 from sklearn.cluster import SpectralClustering
@@ -56,7 +57,7 @@ def Optimizer(model, LR):
     l = 5e1
     mu = 1.
 
-    @tf.function
+    #@tf.function
     def training(input, noised_input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(noised_input, training=True)
@@ -71,7 +72,7 @@ def Optimizer(model, LR):
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         train_loss.update_state(loss)
 
-    # @tf.function
+    #@tf.function
     def finetuning(input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(input, training=True)
@@ -158,19 +159,39 @@ def Optimizer(model, LR):
         H = model(noised, training=False)
         norm_dist = 0
         dist = 0
-        for i in range(100):
-            # print("------------------")
-            # print(acc_rnd[i])
-            # print("Original")
-            # print(input[i])
-            # print("Noising")
-            # print(noised[i])
-            # print("Denoising")
-            # print(H[i].numpy())
-            output = H[i].numpy()
-            norm_dist += norm_euclidean_distance(input[i], output, acc_rnd[i])
-            dist += euclidean_distance(input[i], output, acc_rnd[i])
+        np.save("input",input)
+        np.save("output",H)
+        # for i in range(50):
+        #     print("------------------")
+        #     print(acc_rnd[i])
+        #     print("Original")
+        #     print(input[i])
+        #     print("Noising")
+        #     print(noised[i])
+        #     print("Denoising")
+        #     print(H[i].numpy())
+        #     output = H[i].numpy()
+        #     norm_dist += norm_euclidean_distance(input[i], output, acc_rnd[i])
+        #     dist += euclidean_distance(input[i], output, acc_rnd[i])
         print(norm_dist / 100)
         print(dist / 100)
+        print(len(input))
 
-    return training, train_loss, finetuning, validate2, ACC, NMI, ARI
+    def make_pkl():
+        home_path = os.path.dirname(os.path.abspath(__file__))
+        pkl_file = home_path + '/ntu60_hrnet.pkl'
+        with open(pkl_file, 'rb') as f:
+            data = pickle.load(f)
+        annot = data['annotations']
+        for num in range(len(annot)): #len(annot)
+            for num_person in range(len(annot[num]['keypoint'])):
+                input = annot[num]['keypoint'][num_person]
+                input = train_ws.normalize_data(input)
+                noised, acc_rnd = train_ws.make_noise(input)
+                H = model(noised, training=False)
+                data['annotations'][num]['keypoint'][num_person] = H
+                data['annotations'][num]['keypoint'][num_person] = train_ws.denormalize_data(data['annotations'][num]['keypoint'][num_person])
+            with open('Denoising.pkl', 'wb') as f:
+                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+    return training, train_loss, finetuning, validate2, make_pkl, ACC, NMI, ARI
