@@ -57,7 +57,7 @@ def Optimizer(model, LR):
     l = 5e1
     mu = 1.
 
-    #@tf.function
+    @tf.function
     def training(input, noised_input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(noised_input, training=True)
@@ -72,7 +72,7 @@ def Optimizer(model, LR):
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
         train_loss.update_state(loss)
 
-    #@tf.function
+    @tf.function
     def finetuning(input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(input, training=True)
@@ -173,9 +173,9 @@ def Optimizer(model, LR):
         #     output = H[i].numpy()
         #     norm_dist += norm_euclidean_distance(input[i], output, acc_rnd[i])
         #     dist += euclidean_distance(input[i], output, acc_rnd[i])
-        print(norm_dist / 100)
-        print(dist / 100)
-        print(len(input))
+        # print(norm_dist / 100)
+        # print(dist / 100)
+        # print(len(input))
 
     def make_pkl():
         home_path = os.path.dirname(os.path.abspath(__file__))

@@ -18,57 +18,6 @@ import tensorflow as tf
 import torch
 from tensorflow import keras
 
-
-class Model(tf.keras.Model):
-    def __init__(self, DAD, name='GALA', batch_size=64, trainable=True, **kwargs):
-        super(Model, self).__init__(name=name, **kwargs)
-
-        self.batch_size = batch_size
-        self.GALA = {}
-        D = [400, 300, 100]
-        inputs = keras.Input(shape=(17, 2,), name="digits")
-        for i, d in enumerate(D):
-            if i == 0:
-                self.GALA['enc%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
-                self.GALA['enc%d' % i](inputs)
-            else:
-                self.GALA['enc%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
-                self.GALA['enc%d' % i](keras.Input(shape=(17, D[i - 1],)))
-
-        if trainable:
-            for i, d in enumerate(D[1::-1] + [2]):
-                self.GALA['dec%d' % i] = tf.keras.layers.Dense(d, trainable=trainable)  # , use_bias = False)
-                self.GALA['dec%d' % i](keras.Input(shape=(17, D[-(i + 1)],)))
-
-        self.DADsm = tf.sparse.SparseTensor(DAD['DADsm_indices'], DAD['DADsm_values'][0], DAD['dense_shape'][0])
-        self.DADsp = tf.sparse.SparseTensor(DAD['DADsp_indices'], DAD['DADsp_values'][0], DAD['dense_shape'][0])
-
-    def Laplacian_smoothing(self, x, name, training):
-        tmp = []
-        inputs = self.GALA[name](x, training=training)
-        for i in range(len(x)):
-            tmp.append(tf.nn.relu(
-                tf.sparse.sparse_dense_matmul(self.DADsm, inputs[i])))
-        tmp = tf.convert_to_tensor(tmp)
-        return tmp
-
-    def Laplacian_sharpening(self, x, name, training):
-        tmp = []
-        for i in range(len(x)):
-            tmp.append(tf.nn.relu(tf.sparse.sparse_dense_matmul(self.DADsp, self.GALA[name](x[i], training=training))))
-        return tmp
-
-    def call(self, H, training=None):
-        for i in range(3):
-            H = self.Laplacian_smoothing(H, 'enc%d' % i, training)
-        self.H = H
-        # if training == False:
-        # return H
-        for i in range(3):
-            H = self.Laplacian_sharpening(H, 'dec%d' % i, training)
-        return H
-
-
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
@@ -76,32 +25,57 @@ parser.add_argument("--save_model_name", default="weight", type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
 args = parser.parse_args()
-batch = 64
-num_data = 256 * 500
+batch = 128
+time_input = 30 #입력으로 사용되는 frame 수
+frame_interval = 30 # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
+num_noise = 20 # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
+
 
 
 def make_noise(input_feature):
     noised_out = copy.deepcopy(input_feature)
     acc_rnd = []
-    for idx in range(len(input_feature)):
-        rnd_idx = random.randint(0, 16)
-        radius = 0.05 * random.random()
-        theta = 2 * math.pi * random.random()
-        noised_out[idx, rnd_idx, 0] += radius * math.cos(theta)
-        noised_out[idx, rnd_idx, 1] += radius * math.sin(theta)
-        acc_rnd.append(rnd_idx)
-    return noised_out, acc_rnd
+    for batch_idx in range(len(input_feature)):
+        # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
+        rnd_frame = random.sample(range(0,time_input),num_noise)
+        rnd_joint = random.randint(0, 16)
+        zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
+        noised_out[batch_idx][zero,:] = 0
+            # rnd_idx = random.randint(0, 16)
+            # radius = 0.05 * random.random()
+            # theta = 2 * math.pi * random.random()
+            # noised_out[idx, rnd_idx, 0] += radius * math.cos(theta)
+            # noised_out[idx, rnd_idx, 1] += radius * math.sin(theta)
+            # acc_rnd.append(rnd_idx)
+    return noised_out.astype(np.float32), acc_rnd
 
 
 def making_skeleton_adj():
-    adj_mat = np.array([[0] * 17] * 17)
+    # 17*time_input 크기의 큰 인접행렬 생성
+    adj_mat = np.zeros((17, 17))
+    zero_mat = np.zeros((17, 17))
+    idt_mat = np.eye(17)
+
     neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
                      (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
                      (1, 0), (3, 1), (2, 0), (4, 2)]
-    for i, j in (neighbor_link):
+    for i, j in neighbor_link:
         adj_mat[i][j] = 1
 
-    adj_csr = ss.csr_matrix(adj_mat)
+    init_mat = [[zero_mat] * time_input for _ in range(time_input)]
+    for i in range(time_input):
+        init_mat[i][i] = copy.deepcopy(adj_mat)
+        if i < time_input - 1:
+            init_mat[i][i + 1] = idt_mat
+
+    result = []
+    for i in range(time_input):
+        output = np.array(init_mat[i])
+        reshaped_array = np.reshape(output, (17*time_input, 17)).T
+        result.append(reshaped_array)
+    adj_mat_out = np.concatenate(result)
+
+    adj_csr = ss.csr_matrix(adj_mat_out)
 
     return adj_csr
 
@@ -126,22 +100,22 @@ def get_affinity_skeleton():
     DADsp_indices = np.vstack([DADsp.indices // A.shape[0], DADsp.indices % A.shape[0]]).T
     DAD = {'DADsm_indices': DADsm_indices, 'DADsm_values': DADsm.data.astype(np.float32),
            'DADsp_indices': DADsp_indices, 'DADsp_values': DADsp.data.astype(np.float32), 'dense_shape': A.shape}
-    sio.savemat(home_path + '/pre_built/test_skeleton.mat', DAD)
+    sio.savemat(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input), DAD)
     return DAD
 
 
 def normalize_data(joint_data):
     # x, y 좌표를 각각 정규화
-    joint_data[:, :, 0] /= 1920
-    joint_data[:, :, 1] /= 1080
+    joint_data[:, :, 0] = (joint_data[:, :, 0] - (1920/2))/(1920/2)
+    joint_data[:, :, 1] = (joint_data[:, :, 1] - (1080/2))/(1080/2)
     return joint_data
+
 
 def denormalize_data(joint_data):
-    # x, y 좌표를 각각 정규화
-    joint_data[:, :, 0] *= 1920
-    joint_data[:, :, 1] *= 1080
+    # 원래 x,y 좌표로
+    joint_data[:, :, 0] = joint_data[:, :, 0]*(1920/2)+(1920/2)
+    joint_data[:, :, 1] = joint_data[:, :, 1]*(1080/2)+(1080/2)
     return joint_data
-
 
 
 def load_pkl():
@@ -152,26 +126,16 @@ def load_pkl():
     joint_data = []
     data = data['annotations']
 
-    count = 0
-
-    nn = num_data
     for num in range(len(data)):
-        normalized = normalize_data(data[num]['keypoint'][0])
-        for num1 in range(0, len(data[num]['keypoint'][0]), 30):
-            joint_data.append(normalized[num1])
-            count += 1
-            if count == nn:
-                break
+        for num_person in range(len(data[num]['keypoint'])):
+            normalized = normalize_data(data[num]['keypoint'][num_person])
+            for num1 in range(0, len(normalized), frame_interval):
+                end = num1+time_input
+                if end <= len(normalized):
+                    joint_data.append(normalized[num1:end])
 
-    train = []
-    test = []
-    for t in range(nn):
-        #normalized_data = normalize_data(joint_data[t])
-
-        if t <= nn - (256 * 2):
-            train.append(joint_data[t])
-        else:
-            test.append(joint_data[t])
+    train = copy.deepcopy(joint_data[0:-batch*20])
+    test = copy.deepcopy(joint_data[-batch*20:])
     return train, test
 
 
@@ -191,17 +155,18 @@ if __name__ == '__main__':
     gpus = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
-    if os.path.isfile(home_path + '/pre_built/test_skeleton.mat'):
-        DAD = sio.loadmat(home_path + '/pre_built/test_skeleton.mat')
+    if os.path.isfile(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input)):
+        DAD = sio.loadmat(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input))
     else:
         DAD = get_affinity_skeleton()
 
     features, test = load_pkl()
-    model = Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True)
+    model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input = time_input)
     if args.load_model:
         model.built = True
         model.load_weights('weight_0707.h5', skip_mismatch=False, by_name=False, options=None)
-    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
+    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
+                                                                                            [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
     summary_writer = tf.summary.create_file_writer(args.train_dir)
@@ -215,14 +180,15 @@ if __name__ == '__main__':
         # noised_inpute은 op_util.py에서 처리.
         if args.test:
             for epoch in range(maximum_epoch):
+                random.shuffle(features) #데이터셋을 매 epoch마다 shuffle (loss함수 치우치지 않도록)
                 for num in range(len(features) // batch):
-                    feature = np.array(features[num * batch:(num + 1) * batch])
-                    feature = feature.reshape(-1, 17, 2)
+                    feature = np.array(features[num * batch:(num + 1) * batch]).astype(np.float32)
+                    feature = feature.reshape(-1, 17*time_input, 2)
                     noised_input, _ = make_noise(feature)
                     init_step(feature, noised_input, weight_decay, k)
                 step += 1
                 model.save_weights('{}.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
-                model.save('path_to_my_model', save_format='tf')
+                #model.save('path_to_my_model', save_format='tf')
 
                 if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                     template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
@@ -234,8 +200,8 @@ if __name__ == '__main__':
 
                 if epoch % do_test == 0 or epoch == maximum_epoch - 1:
                     for num in range(len(test) // batch):
-                        tests = np.array(test[num * batch:(num + 1) * batch])
-                        tests = tests.reshape(-1, 17, 2)
+                        tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
+                        tests = tests.reshape(-1, 17*time_input, 2)
                         validate(tests, k)
                     tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
                     tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
