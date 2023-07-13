@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="" />
+    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="Sparse_dense_matmul의 batch 계산을 위한 Test코드">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nets/GALA.py" beforeDir="false" afterPath="$PROJECT_DIR$/nets/GALA.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/op_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/op_util.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sparse_tensor_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/sparse_tensor_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/events.out.tfevents.1687997616.netsyslab.112148.0.v2" beforeDir="false" afterPath="$PROJECT_DIR$/test/events.out.tfevents.1687997616.netsyslab.112148.0.v2" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/trained_params.mat" beforeDir="false" afterPath="$PROJECT_DIR$/test/trained_params.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_ws.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/weight.h5" beforeDir="false" afterPath="$PROJECT_DIR$/weight.h5" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -17,6 +26,12 @@
       </list>
     </option>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GithubDefaultAccount">
+    <option name="defaultAccountId" value="d8721673-d48b-4704-93d9-989307931d21" />
+  </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -27,10 +42,11 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;/home/netsyslab/ws/GALA_TF2.0-master&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -60,7 +76,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="keras_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="load_pkl" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="GALA_TF2.0-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -72,7 +88,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/keras_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/load_pkl.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -81,7 +97,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="op_util" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="minist_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="GALA_TF2.0-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -93,7 +109,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/op_util.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/minist_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -102,7 +118,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="sparse_tensor_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="GALA_TF2.0-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -114,7 +130,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sparse_tensor_test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -136,7 +152,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="PARAMETERS" value="--save_model_name weight_0708" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -144,13 +160,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="Python.GALA" />
+      <item itemvalue="Python.load_pkl" />
+      <item itemvalue="Python.minist_test" />
+      <item itemvalue="Python.sparse_tensor_test" />
+      <item itemvalue="Python.train_ws" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python.train_ws" />
-        <item itemvalue="Python.test" />
-        <item itemvalue="Python.op_util" />
+        <item itemvalue="Python.sparse_tensor_test" />
+        <item itemvalue="Python.load_pkl" />
+        <item itemvalue="Python.minist_test" />
         <item itemvalue="Python.GALA" />
-        <item itemvalue="Python.keras_test" />
       </list>
     </recent_temporary>
   </component>
@@ -163,7 +186,62 @@
       <option name="presentableId" value="Default" />
       <updated>1685527321349</updated>
     </task>
+    <task id="LOCAL-00001" summary="Denoising을 위한 Line 추">
+      <created>1688003811369</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1688003811369</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Sparse_dense_matmul의 batch 계산을 위한 Test코드">
+      <created>1688003881011</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1688003881011</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Noise 추가하는 부분을 작성.">
+      <created>1688020061493</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1688020061493</updated>
+    </task>
+    <task id="LOCAL-00004" summary="[Update] Input 과 Output의 유클리디안 거리 계산 코드 추가">
+      <option name="closed" value="true" />
+      <created>1688606697460</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1688606697460</updated>
+    </task>
+    <task id="LOCAL-00005" summary="[Edit] args 추가하여 모델 저장 이름, 모델 불러오기, test만 해보기 가능.&#10;[Update] Noise 생성하는 함수 추가.">
+      <option name="closed" value="true" />
+      <created>1688606805882</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1688606805882</updated>
+    </task>
+    <task id="LOCAL-00006" summary="[Update] Batch_size 동적으로 수정">
+      <option name="closed" value="true" />
+      <created>1688717076181</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1688717076181</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Denoising을 위한 Line 추" />
+    <MESSAGE value="Sparse_dense_matmul의 batch 계산을 위한 Test코드" />
+    <MESSAGE value="Noise 추가하는 부분을 작성." />
+    <MESSAGE value="[Update] Input 과 Output의 유클리디안 거리 계산 코드 추가" />
+    <MESSAGE value="[Edit] args 추가하여 모델 저장 이름, 모델 불러오기, test만 해보기 가능.&#10;[Update] Noise 생성하는 함수 추가." />
+    <MESSAGE value="[Update] Batch_size 동적으로 수정" />
+    <option name="LAST_COMMIT_MESSAGE" value="[Update] Batch_size 동적으로 수정" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -175,38 +253,73 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>60</line>
+          <line>109</line>
           <option name="timeStamp" value="11" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>171</line>
+          <line>228</line>
           <option name="timeStamp" value="36" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>119</line>
-          <option name="timeStamp" value="84" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>118</line>
-          <option name="timeStamp" value="85" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>26</line>
-          <option name="timeStamp" value="110" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <url>file://$PROJECT_DIR$/minist_test.py</url>
           <line>24</line>
-          <option name="timeStamp" value="111" />
+          <option name="timeStamp" value="152" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/minist_test.py</url>
+          <line>73</line>
+          <option name="timeStamp" value="153" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/minist_test.py</url>
+          <line>52</line>
+          <option name="timeStamp" value="154" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/minist_test.py</url>
+          <line>11</line>
+          <option name="timeStamp" value="155" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/minist_test.py</url>
+          <line>9</line>
+          <option name="timeStamp" value="156" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/load_pkl.py</url>
+          <line>43</line>
+          <option name="timeStamp" value="214" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/sparse_tensor_test.py</url>
+          <line>71</line>
+          <option name="timeStamp" value="233" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/sparse_tensor_test.py</url>
+          <line>70</line>
+          <option name="timeStamp" value="234" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>92</line>
-          <option name="timeStamp" value="115" />
+          <line>49</line>
+          <option name="timeStamp" value="238" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
+          <line>26</line>
+          <option name="timeStamp" value="241" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
+          <line>31</line>
+          <option name="timeStamp" value="242" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
+          <line>13</line>
+          <option name="timeStamp" value="243" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
