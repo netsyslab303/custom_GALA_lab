@@ -177,20 +177,34 @@ def Optimizer(model, LR):
         # print(dist / 100)
         # print(len(input))
 
-    def make_pkl():
+    def make_pkl(spt):
         home_path = os.path.dirname(os.path.abspath(__file__))
-        pkl_file = home_path + '/ntu60_hrnet.pkl'
+        pkl_file = home_path + '/Noising_keypoint_0.6_xsub_val.pkl'
         with open(pkl_file, 'rb') as f:
             data = pickle.load(f)
-        annot = data['annotations']
+        if spt:
+            split, data = data['split'], data['annotations']
+            identifier = 'filename' if 'filen+ame' in data[0] else 'frame_dir'
+            split = set(split[spt])
+            annot = [x for x in data if x[identifier] in split]
+        else:
+            annot = data['annotations']
         for num in range(len(annot)): #len(annot)
             for num_person in range(len(annot[num]['keypoint'])):
-                input = annot[num]['keypoint'][num_person]
-                input = train_ws.normalize_data(input)
-                noised, acc_rnd = train_ws.make_noise(input)
-                H = model(noised, training=False)
-                data['annotations'][num]['keypoint'][num_person] = H
-                data['annotations'][num]['keypoint'][num_person] = train_ws.denormalize_data(data['annotations'][num]['keypoint'][num_person])
+                # pkl 행동들의 frame수가 time_input으로 딱 나눠지지 않기 때문에 마지막 배열의 크기를 맞춰준다.
+                inputs = annot[num]['keypoint'][num_person]
+                time = train_ws.time_input
+                cut = len(inputs) // time
+                res = len(inputs) % time
+                input_1 = inputs[0:cut*time].reshape(-1, 17*time, 2)
+                input_2 = inputs[-time:].reshape(-1, 17*time, 2)
+                inputs = np.append(input_1,input_2, axis=0)
+                inputs = train_ws.normalize_data(inputs)
+                H = train_ws.denormalize_data(np.array(model(inputs, training=False))).reshape(-1, 17, 2)
+                output_1 = H[0:cut*time]
+                output_2 = H[-res:]
+                output = np.append(output_1,output_2, axis=0)
+                data['annotations'][num]['keypoint'][num_person] = output
             with open('Denoising.pkl', 'wb') as f:
                 pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
