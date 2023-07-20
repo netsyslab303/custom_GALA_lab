@@ -21,14 +21,14 @@ from tensorflow import keras
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
-parser.add_argument("--save_model_name", default="weight", type=str)
+parser.add_argument("--save_model_name", default="weight_128_10_10_6", type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
 args = parser.parse_args()
 batch = 128
-time_input = 30 #입력으로 사용되는 frame 수
-frame_interval = 30 # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 20 # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
+time_input = 10 #입력으로 사용되는 frame 수
+frame_interval = 10 # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
+num_noise = 6 # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
 
 
 
@@ -41,12 +41,6 @@ def make_noise(input_feature):
         rnd_joint = random.randint(0, 16)
         zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
         noised_out[batch_idx][zero,:] = 0
-            # rnd_idx = random.randint(0, 16)
-            # radius = 0.05 * random.random()
-            # theta = 2 * math.pi * random.random()
-            # noised_out[idx, rnd_idx, 0] += radius * math.cos(theta)
-            # noised_out[idx, rnd_idx, 1] += radius * math.sin(theta)
-            # acc_rnd.append(rnd_idx)
     return noised_out.astype(np.float32), acc_rnd
 
 
@@ -105,16 +99,20 @@ def get_affinity_skeleton():
 
 
 def normalize_data(joint_data):
-    # x, y 좌표를 각각 정규화
-    joint_data[:, :, 0] = (joint_data[:, :, 0] - (1920/2))/(1920/2)
-    joint_data[:, :, 1] = (joint_data[:, :, 1] - (1080/2))/(1080/2)
+    #x, y 좌표를 각각 정규화
+    # joint_data[:, :, 0] = (joint_data[:, :, 0] - (1920/2))/(1920/2)
+    # joint_data[:, :, 1] = (joint_data[:, :, 1] - (1080/2))/(1080/2)
+    joint_data[:, :, 0] /= 1920
+    joint_data[:, :, 1] /= 1080
     return joint_data
 
 
 def denormalize_data(joint_data):
     # 원래 x,y 좌표로
-    joint_data[:, :, 0] = joint_data[:, :, 0]*(1920/2)+(1920/2)
-    joint_data[:, :, 1] = joint_data[:, :, 1]*(1080/2)+(1080/2)
+    # joint_data[:, :, 0] = joint_data[:, :, 0]*(1920/2)+(1920/2)
+    # joint_data[:, :, 1] = joint_data[:, :, 1]*(1080/2)+(1080/2)
+    joint_data[:, :, 0] *= 1920
+    joint_data[:, :, 1] *= 1080
     return joint_data
 
 
@@ -134,6 +132,7 @@ def load_pkl():
                 if end <= len(normalized):
                     joint_data.append(normalized[num1:end])
 
+    tmp = joint_data[-batch*20]
     train = copy.deepcopy(joint_data[0:-batch*20])
     test = copy.deepcopy(joint_data[-batch*20:])
     return train, test
@@ -164,9 +163,8 @@ if __name__ == '__main__':
     model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input = time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weight_0707.h5', skip_mismatch=False, by_name=False, options=None)
-    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
-                                                                                            [train_lr, finetune_lr])
+        model.load_weights('weight_128_10_10_6.h5', skip_mismatch=False, by_name=False, options=None)
+    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
     summary_writer = tf.summary.create_file_writer(args.train_dir)
@@ -219,7 +217,11 @@ if __name__ == '__main__':
                     sio.savemat(args.train_dir + '/trained_params.mat', params)
 
         else:
-            make_pkl()
+            for num in range(len(test) // batch):
+                tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
+                tests = tests.reshape(-1, 17 * time_input, 2)
+                validate(tests, k)
+            #make_pkl(spt='xsub_val')
 '''
         if finetune_epoch > 0:
             train_time = time.time()
