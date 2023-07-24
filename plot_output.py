@@ -4,6 +4,7 @@ import numpy as np
 import imageio
 from PIL import Image
 import matplotlib.image as mpimg
+from numpy import linalg as LA
 
 path = os.getcwd()
 input = np.load('input.npy')
@@ -49,7 +50,9 @@ def image_to_gif():
         images = []
         for filename in image_list:
             images.append(imageio.imread(os.path.join(dir_list, filename)))
-        imageio.mimsave('./images/{}.gif'.format(image_dir), images, 'GIF', duration=0.5, loop=1)
+        imageio.mimsave('./gif/{}.gif'.format(image_dir), images, 'GIF', duration=0.5, loop=1)
 
-
+save_as_image(input,ouput)
 image_to_gif()
+
+
