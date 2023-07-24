@@ -18,18 +18,23 @@ import tensorflow as tf
 import torch
 from tensorflow import keras
 
-home_path = os.path.dirname(os.path.abspath(__file__))
-parser = argparse.ArgumentParser()
-parser.add_argument("--train_dir", default="test", type=str)
-parser.add_argument("--save_model_name", default="weights/weight_modified_adj1_128_30_15_10", type=str)
-parser.add_argument("--load_model", action='store_true')
-parser.add_argument("--test", action='store_false', help='for only_test')
-args = parser.parse_args()
 normalized_point = 1
+num_adj = 2
 batch = 128
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 10  # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
+num_noise = 10
+
+home_path = os.path.dirname(os.path.abspath(__file__))
+parser = argparse.ArgumentParser()
+parser.add_argument("--train_dir", default="test", type=str)
+parser.add_argument("--save_model_name",
+                    default="weights/weight_modified_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
+                                                                               frame_interval, num_noise), type=str)
+parser.add_argument("--load_model", action='store_true')
+parser.add_argument("--test", action='store_false', help='for only_test')
+args = parser.parse_args()
+# 입력으로 사용되는 frame 중 noise 처리되는 frame 수
 
 neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
                  (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
@@ -41,7 +46,7 @@ def make_noise(input_feature):
     acc_rnd = []
     for batch_idx in range(len(input_feature)):
         # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
-        rnd_frame = random.sample(range(1, time_input-1), num_noise)
+        rnd_frame = random.sample(range(1, time_input - 1), num_noise)
         rnd_joint = random.randint(1, 16)
         # zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
         # noised_out[batch_idx][zero,:] = 0
@@ -67,11 +72,15 @@ def making_skeleton_adj():
     init_mat = [[zero_mat] * time_input for _ in range(time_input)]
     for i in range(time_input):
         init_mat[i][i] = copy.deepcopy(adj_mat)
-        # if i < time_input - 2:
-        #     init_mat[i][i + 1] = idt_mat
-        #     init_mat[i][i + 2] = idt_mat
-        if i < time_input - 1:
-            init_mat[i][i + 1] = idt_mat
+        if num_adj == 1:
+            if i < time_input - 1:
+                init_mat[i][i + 1] = idt_mat
+        if num_adj == 2:
+            if i < time_input - 2:
+                init_mat[i][i + 1] = idt_mat
+                init_mat[i][i + 2] = idt_mat
+            elif i < time_input - 1:
+                init_mat[i][i + 1] = idt_mat
 
     result = []
     for i in range(time_input):
@@ -123,7 +132,7 @@ def get_affinity_skeleton():
     DADsp_indices = np.vstack([DADsp.indices // A.shape[0], DADsp.indices % A.shape[0]]).T
     DAD = {'DADsm_indices': DADsm_indices, 'DADsm_values': DADsm.data.astype(np.float32),
            'DADsp_indices': DADsp_indices, 'DADsp_values': DADsp.data.astype(np.float32), 'dense_shape': A.shape}
-    sio.savemat(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input), DAD)
+    sio.savemat(home_path + '/pre_built/test_skeleton{}_{}.mat'.format(time_input,num_adj), DAD)
     return DAD
 
 
@@ -134,8 +143,8 @@ def normalize_data(joint_data):
     center_x = np.array(joint_data[:, 0, 0])
     center_y = np.array(joint_data[:, 0, 1])
     for idx in range(len(joint_data)):
-        joint_data[idx, :, 0] = (joint_data[idx, :, 0]/center_x[idx])-(1-normalized_point)
-        joint_data[idx, :, 1] = (joint_data[idx, :, 1]/center_y[idx])-(1-normalized_point)
+        joint_data[idx, :, 0] = (joint_data[idx, :, 0] / center_x[idx]) - (1 - normalized_point)
+        joint_data[idx, :, 1] = (joint_data[idx, :, 1] / center_y[idx]) - (1 - normalized_point)
     return joint_data
 
 
@@ -149,9 +158,10 @@ def denormalize_data(joint_data):
 
 
 def load_pkl():
-    tmp = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval)
-    if os.path.isfile(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval)):
-        pkl_file = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point,time_input, frame_interval)
+    if os.path.isfile(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                          frame_interval)):
+        pkl_file = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                       frame_interval)
         with open(pkl_file, 'rb') as f:
             joint_data = pickle.load(f)
 
@@ -164,14 +174,15 @@ def load_pkl():
         data = data['annotations']
 
         for num in range(len(data)):
-            if len(data[num]['keypoint'])==1:
+            if len(data[num]['keypoint']) == 1:
                 normalized = normalize_data(data[num]['keypoint'][0])
                 for num1 in range(0, len(normalized), frame_interval):
                     end = num1 + time_input
                     if end <= len(normalized):
                         joint_data.append(normalized[num1:end])
 
-        with open(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval), 'wb') as f:
+        with open(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                      frame_interval), 'wb') as f:
             pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
     train = copy.deepcopy(joint_data[0:-batch * 20])
     test = copy.deepcopy(joint_data[-batch * 20:])
@@ -194,8 +205,8 @@ if __name__ == '__main__':
     gpus = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
-    if os.path.isfile(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input)):
-        DAD = sio.loadmat(home_path + '/pre_built/test_skeleton{}.mat'.format(time_input))
+    if os.path.isfile(home_path + '/pre_built/test_skeleton{}_{}.mat'.format(time_input, num_adj)):
+        DAD = sio.loadmat(home_path + '/pre_built/test_skeleton{}_{}.mat'.format(time_input, num_adj))
     else:
         DAD = get_affinity_skeleton()
 
@@ -203,7 +214,8 @@ if __name__ == '__main__':
     model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weights/weight_modified_adj1_128_30_15_10.h5', skip_mismatch=False, by_name=False, options=None)
+        model.load_weights('weights/weight_modified_adj1_128_30_15_10.h5', skip_mismatch=False, by_name=False,
+                           options=None)
     init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
                                                                                             [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
@@ -255,7 +267,7 @@ if __name__ == '__main__':
                     params = {}
                     for v in model.variables:
                         params[v.name] = v.numpy()
-                    sio.savemat(args.train_dir + '/trained_params.mat', params)
+                    #sio.savemat(args.train_dir + '/trained_params.mat', params)
 
         else:
             for num in range(len(test) // batch):
