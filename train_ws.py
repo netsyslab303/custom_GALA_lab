@@ -21,15 +21,19 @@ from tensorflow import keras
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
-parser.add_argument("--save_model_name", default="weight_128_10_10_6", type=str)
+parser.add_argument("--save_model_name", default="weights/weight_modified_adj1_128_30_15_10", type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
 args = parser.parse_args()
+normalized_point = 1
 batch = 128
-time_input = 10 #입력으로 사용되는 frame 수
-frame_interval = 10 # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 6 # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
+time_input = 30  # 입력으로 사용되는 frame 수
+frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
+num_noise = 10  # 입력으로 사용되는 frame 중 noise 처리되는 frame 수
 
+neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
+                 (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
+                 (1, 0), (3, 1), (2, 0), (4, 2)]
 
 
 def make_noise(input_feature):
@@ -37,10 +41,17 @@ def make_noise(input_feature):
     acc_rnd = []
     for batch_idx in range(len(input_feature)):
         # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
-        rnd_frame = random.sample(range(0,time_input),num_noise)
-        rnd_joint = random.randint(0, 16)
-        zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
-        noised_out[batch_idx][zero,:] = 0
+        rnd_frame = random.sample(range(1, time_input-1), num_noise)
+        rnd_joint = random.randint(1, 16)
+        # zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
+        # noised_out[batch_idx][zero,:] = 0
+        for i, j in neighbor_link:
+            if i == rnd_joint:
+                neighbor_joint = j
+                break
+        noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
+        neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
+        noised_out[batch_idx][noised_point, :] = noised_out[batch_idx][neighbor_point, :]
     return noised_out.astype(np.float32), acc_rnd
 
 
@@ -50,24 +61,41 @@ def making_skeleton_adj():
     zero_mat = np.zeros((17, 17))
     idt_mat = np.eye(17)
 
-    neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
-                     (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
-                     (1, 0), (3, 1), (2, 0), (4, 2)]
     for i, j in neighbor_link:
         adj_mat[i][j] = 1
 
     init_mat = [[zero_mat] * time_input for _ in range(time_input)]
     for i in range(time_input):
         init_mat[i][i] = copy.deepcopy(adj_mat)
+        # if i < time_input - 2:
+        #     init_mat[i][i + 1] = idt_mat
+        #     init_mat[i][i + 2] = idt_mat
         if i < time_input - 1:
             init_mat[i][i + 1] = idt_mat
 
     result = []
     for i in range(time_input):
         output = np.array(init_mat[i])
-        reshaped_array = np.reshape(output, (17*time_input, 17)).T
+        reshaped_array = np.reshape(output, (17 * time_input, 17)).T
         result.append(reshaped_array)
     adj_mat_out = np.concatenate(result)
+
+    # init_adj_mat = [[zero_mat] * time_input for _ in range(time_input)]
+    # init_idt_mat = [[zero_mat] * time_input for _ in range(time_input)]
+    # for i in range(time_input):
+    #     init_adj_mat[i][i] = copy.deepcopy(adj_mat)
+    #     if i < time_input - 1:
+    #         init_idt_mat[i][i + 1] = idt_mat
+    #     if i > 0:
+    #         init_idt_mat[i][i - 1] = idt_mat
+    #
+    # idt_result = []
+    # adj_result = []
+    # for i in range(time_input):
+    #     idt_result.append(np.reshape(np.array(init_idt_mat[i]), (17*time_input, 17)).T)
+    #     adj_result.append(np.reshape(np.array(init_adj_mat[i]), (17 * time_input, 17)).T)
+    # idt_mat_out = np.concatenate(idt_result)
+    # adj_mat_out = np.concatenate(adj_result)
 
     adj_csr = ss.csr_matrix(adj_mat_out)
 
@@ -83,6 +111,7 @@ def get_affinity_skeleton():
     eye = np.eye(A.shape[0])
 
     Asm = A + eye
+    tmp = np.squeeze(np.asarray(Asm))
     Dsm = 1 / np.sqrt(np.sum(Asm, -1))
     DADsm = ss.csr_matrix(np.multiply(np.multiply(Asm, Dsm).T, Dsm).reshape(-1))
 
@@ -99,11 +128,14 @@ def get_affinity_skeleton():
 
 
 def normalize_data(joint_data):
-    #x, y 좌표를 각각 정규화
+    # x, y 좌표를 각각 정규화
     # joint_data[:, :, 0] = (joint_data[:, :, 0] - (1920/2))/(1920/2)
     # joint_data[:, :, 1] = (joint_data[:, :, 1] - (1080/2))/(1080/2)
-    joint_data[:, :, 0] /= 1920
-    joint_data[:, :, 1] /= 1080
+    center_x = np.array(joint_data[:, 0, 0])
+    center_y = np.array(joint_data[:, 0, 1])
+    for idx in range(len(joint_data)):
+        joint_data[idx, :, 0] = (joint_data[idx, :, 0]/center_x[idx])-(1-normalized_point)
+        joint_data[idx, :, 1] = (joint_data[idx, :, 1]/center_y[idx])-(1-normalized_point)
     return joint_data
 
 
@@ -117,24 +149,32 @@ def denormalize_data(joint_data):
 
 
 def load_pkl():
-    pkl_file = home_path + '/ntu60_hrnet.pkl'
-    with open(pkl_file, 'rb') as f:
-        data = pickle.load(f)
+    tmp = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval)
+    if os.path.isfile(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval)):
+        pkl_file = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point,time_input, frame_interval)
+        with open(pkl_file, 'rb') as f:
+            joint_data = pickle.load(f)
 
-    joint_data = []
-    data = data['annotations']
+    else:
+        pkl_file = home_path + '/ntu60_hrnet.pkl'
+        with open(pkl_file, 'rb') as f:
+            data = pickle.load(f)
 
-    for num in range(len(data)):
-        for num_person in range(len(data[num]['keypoint'])):
-            normalized = normalize_data(data[num]['keypoint'][num_person])
-            for num1 in range(0, len(normalized), frame_interval):
-                end = num1+time_input
-                if end <= len(normalized):
-                    joint_data.append(normalized[num1:end])
+        joint_data = []
+        data = data['annotations']
 
-    tmp = joint_data[-batch*20]
-    train = copy.deepcopy(joint_data[0:-batch*20])
-    test = copy.deepcopy(joint_data[-batch*20:])
+        for num in range(len(data)):
+            if len(data[num]['keypoint'])==1:
+                normalized = normalize_data(data[num]['keypoint'][0])
+                for num1 in range(0, len(normalized), frame_interval):
+                    end = num1 + time_input
+                    if end <= len(normalized):
+                        joint_data.append(normalized[num1:end])
+
+        with open(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input, frame_interval), 'wb') as f:
+            pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
+    train = copy.deepcopy(joint_data[0:-batch * 20])
+    test = copy.deepcopy(joint_data[-batch * 20:])
     return train, test
 
 
@@ -160,11 +200,12 @@ if __name__ == '__main__':
         DAD = get_affinity_skeleton()
 
     features, test = load_pkl()
-    model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input = time_input)
+    model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weight_128_10_10_6.h5', skip_mismatch=False, by_name=False, options=None)
-    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model, [train_lr, finetune_lr])
+        model.load_weights('weights/weight_modified_adj1_128_30_15_10.h5', skip_mismatch=False, by_name=False, options=None)
+    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
+                                                                                            [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
     summary_writer = tf.summary.create_file_writer(args.train_dir)
@@ -178,15 +219,15 @@ if __name__ == '__main__':
         # noised_inpute은 op_util.py에서 처리.
         if args.test:
             for epoch in range(maximum_epoch):
-                random.shuffle(features) #데이터셋을 매 epoch마다 shuffle (loss함수 치우치지 않도록)
+                random.shuffle(features)  # 데이터셋을 매 epoch마다 shuffle (loss함수 치우치지 않도록)
                 for num in range(len(features) // batch):
                     feature = np.array(features[num * batch:(num + 1) * batch]).astype(np.float32)
-                    feature = feature.reshape(-1, 17*time_input, 2)
+                    feature = feature.reshape(-1, 17 * time_input, 2)
                     noised_input, _ = make_noise(feature)
                     init_step(feature, noised_input, weight_decay, k)
                 step += 1
                 model.save_weights('{}.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
-                #model.save('path_to_my_model', save_format='tf')
+                # model.save('path_to_my_model', save_format='tf')
 
                 if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                     template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
@@ -199,7 +240,7 @@ if __name__ == '__main__':
                 if epoch % do_test == 0 or epoch == maximum_epoch - 1:
                     for num in range(len(test) // batch):
                         tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
-                        tests = tests.reshape(-1, 17*time_input, 2)
+                        tests = tests.reshape(-1, 17 * time_input, 2)
                         validate(tests, k)
                     tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
                     tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
@@ -221,7 +262,7 @@ if __name__ == '__main__':
                 tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
                 tests = tests.reshape(-1, 17 * time_input, 2)
                 validate(tests, k)
-            #make_pkl(spt='xsub_val')
+            # make_pkl(spt='xsub_val')
 '''
         if finetune_epoch > 0:
             train_time = time.time()
