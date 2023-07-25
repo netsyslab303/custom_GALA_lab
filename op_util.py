@@ -11,6 +11,7 @@ import sklearn.metrics as sklm
 import cv2
 from nets import SVD
 import train_ws
+import plot_output
 
 
 def norm_euclidean_distance(input, output, acc):
@@ -57,7 +58,7 @@ def Optimizer(model, LR):
     l = 5e1
     mu = 1.
 
-    @tf.function
+    #@tf.function
     def training(input, noised_input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(noised_input, training=True)
@@ -154,13 +155,16 @@ def Optimizer(model, LR):
         NMI.update_state(nmi_score)
         ARI.update_state(ari_score)
 
-    def validate2(input, k):
+    def validate2(input, org, batch):
         noised, acc_rnd = train_ws.make_noise(input)
         H = model(noised, training=False)
-        norm_dist = 0
-        dist = 0
-        np.save("input",input)
-        np.save("output",H)
+        np.save("input",org)
+        output = np.array(H)
+        output = train_ws.denormalize_data(output, org)
+        np.save("output", output)
+        # plot_output.save_as_image(org, output, batch)
+        # norm_dist = 0
+        # dist = 0
         # for i in range(50):
         #     print("------------------")
         #     print(acc_rnd[i])
