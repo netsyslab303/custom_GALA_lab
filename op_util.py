@@ -58,7 +58,7 @@ def Optimizer(model, LR):
     l = 5e1
     mu = 1.
 
-    #@tf.function
+    @tf.function
     def training(input, noised_input, weight_decay, k):
         with tf.GradientTape() as tape:
             generated = model(noised_input, training=True)
@@ -158,7 +158,7 @@ def Optimizer(model, LR):
     def validate2(input, org, batch):
         noised, acc_rnd = train_ws.make_noise(input)
         H = model(noised, training=False)
-        np.save("input",org)
+        np.save("input", org)
         output = np.array(H)
         output = train_ws.denormalize_data(output, org)
         np.save("output", output)

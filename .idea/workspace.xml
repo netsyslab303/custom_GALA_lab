@@ -4,15 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="Sparse_dense_matmul의 batch 계산을 위한 Test코드">
+    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="[Update] WS_Noising point 주변관절 값으로 사용,">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nets/GALA.py" beforeDir="false" afterPath="$PROJECT_DIR$/nets/GALA.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/op_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/op_util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sparse_tensor_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/sparse_tensor_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/events.out.tfevents.1687997616.netsyslab.112148.0.v2" beforeDir="false" afterPath="$PROJECT_DIR$/test/events.out.tfevents.1687997616.netsyslab.112148.0.v2" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/trained_params.mat" beforeDir="false" afterPath="$PROJECT_DIR$/test/trained_params.mat" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_ws.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/weight.h5" beforeDir="false" afterPath="$PROJECT_DIR$/weight.h5" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_ws_seperated_temporal.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws_seperated_temporal.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,6 +30,16 @@
   <component name="GithubDefaultAccount">
     <option name="defaultAccountId" value="d8721673-d48b-4704-93d9-989307931d21" />
   </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/random.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/PIL/ImageFile.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/keras/utils/traceback_utils.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/numpy/core/fromnumeric.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/numpy/lib/format.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/numpy/lib/npyio.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/tensorflow/python/framework/sparse_tensor.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/anaconda3/envs/mmaction/lib/python3.7/site-packages/tensorflow/python/util/traceback_utils.py" root0="SKIP_INSPECTION" />
+  </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -45,8 +53,8 @@
     &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/netsyslab/ws/GALA_TF2.0-master&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;
+    &quot;last_opened_file_path&quot;: &quot;/home/netsyslab/ws/custom_GALA_lab&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;editor.preferences.fonts.default&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -54,30 +62,9 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.train_ws">
-    <configuration name="GALA" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="GALA_TF2.0-master" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/nets" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/nets/GALA.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="load_pkl" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="GALA_TF2.0-master" />
+  <component name="RunManager" selected="Python.train_ws_seperated_temporal">
+    <configuration name="make_val_noising_pkl" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -88,7 +75,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/load_pkl.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/make_val_noising_pkl.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -97,8 +84,8 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="minist_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="GALA_TF2.0-master" />
+    <configuration name="op_util" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -109,7 +96,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/minist_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/op_util.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -118,8 +105,8 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="sparse_tensor_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="GALA_TF2.0-master" />
+    <configuration name="plot_output" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -130,7 +117,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sparse_tensor_test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/plot_output.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -140,7 +127,7 @@
       <method v="2" />
     </configuration>
     <configuration name="train_ws" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="GALA_TF2.0-master" />
+      <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -152,7 +139,49 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws.py" />
-      <option name="PARAMETERS" value="--save_model_name weight_0708" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="train_ws" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws.py" />
+      <option name="PARAMETERS" value="--load_model --test" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="train_ws_seperated_temporal" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws_seperated_temporal.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -161,19 +190,19 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.GALA" />
-      <item itemvalue="Python.load_pkl" />
-      <item itemvalue="Python.minist_test" />
-      <item itemvalue="Python.sparse_tensor_test" />
+      <item itemvalue="Python.make_val_noising_pkl" />
+      <item itemvalue="Python.op_util" />
+      <item itemvalue="Python.plot_output" />
       <item itemvalue="Python.train_ws" />
+      <item itemvalue="Python.train_ws_seperated_temporal" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.train_ws_seperated_temporal" />
         <item itemvalue="Python.train_ws" />
-        <item itemvalue="Python.sparse_tensor_test" />
-        <item itemvalue="Python.load_pkl" />
-        <item itemvalue="Python.minist_test" />
-        <item itemvalue="Python.GALA" />
+        <item itemvalue="Python.plot_output" />
+        <item itemvalue="Python.make_val_noising_pkl" />
+        <item itemvalue="Python.op_util" />
       </list>
     </recent_temporary>
   </component>
@@ -231,17 +260,97 @@
       <option name="project" value="LOCAL" />
       <updated>1688717076181</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Sparse_dense_matmul의 batch 계산을 위한 Test코드">
+      <option name="closed" value="true" />
+      <created>1689244045248</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1689244045248</updated>
+    </task>
+    <task id="LOCAL-00008" summary="[New] WS_ 성능 검증을 위한 nosing pkl 생성하는 코드">
+      <option name="closed" value="true" />
+      <created>1689844653502</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1689844653502</updated>
+    </task>
+    <task id="LOCAL-00009" summary="[Update] WS_ Temporal 길이 고려한 denosing pkl 파일 생성 코드로 수정">
+      <option name="closed" value="true" />
+      <created>1689844692171</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1689844692171</updated>
+    </task>
+    <task id="LOCAL-00010" summary="[New] WS_ validation 성능 검증 시 plot 및 gif로 변경">
+      <option name="closed" value="true" />
+      <created>1689844734528</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1689844734528</updated>
+    </task>
+    <task id="LOCAL-00011" summary="[확인필요] 입력 크기 바뀌어도 가중치 불러오기 가능, 성능 올리기.">
+      <option name="closed" value="true" />
+      <created>1689844795694</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1689844795694</updated>
+    </task>
+    <task id="LOCAL-00012" summary="[Update] WS_Noising point 주변관절 값으로 사용, Noising frame : 처음 마지막 제외, normalized_point를 코 중심으로 변경.">
+      <option name="closed" value="true" />
+      <created>1690187850988</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1690187850988</updated>
+    </task>
+    <task id="LOCAL-00013" summary="[Update] gif 만들어지도록 변경">
+      <option name="closed" value="true" />
+      <created>1690187890377</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1690187890377</updated>
+    </task>
+    <task id="LOCAL-00014" summary="[Update] num_adj 추가">
+      <option name="closed" value="true" />
+      <created>1690188898782</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1690188898782</updated>
+    </task>
+    <task id="LOCAL-00015" summary="[Update] 처음 마지막 frame 처리">
+      <option name="closed" value="true" />
+      <created>1690282600512</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1690282600512</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Denoising을 위한 Line 추" />
-    <MESSAGE value="Sparse_dense_matmul의 batch 계산을 위한 Test코드" />
     <MESSAGE value="Noise 추가하는 부분을 작성." />
     <MESSAGE value="[Update] Input 과 Output의 유클리디안 거리 계산 코드 추가" />
     <MESSAGE value="[Edit] args 추가하여 모델 저장 이름, 모델 불러오기, test만 해보기 가능.&#10;[Update] Noise 생성하는 함수 추가." />
     <MESSAGE value="[Update] Batch_size 동적으로 수정" />
-    <option name="LAST_COMMIT_MESSAGE" value="[Update] Batch_size 동적으로 수정" />
+    <MESSAGE value="Sparse_dense_matmul의 batch 계산을 위한 Test코드" />
+    <MESSAGE value="[New] WS_ 성능 검증을 위한 nosing pkl 생성하는 코드" />
+    <MESSAGE value="[Update] WS_ Temporal 길이 고려한 denosing pkl 파일 생성 코드로 수정" />
+    <MESSAGE value="[New] WS_ validation 성능 검증 시 plot 및 gif로 변경" />
+    <MESSAGE value="[확인필요] 입력 크기 바뀌어도 가중치 불러오기 가능, 성능 올리기." />
+    <MESSAGE value="[Update] WS_Noising point 주변관절 값으로 사용, Noising frame : 처음 마지막 제외, normalized_point를 코 중심으로 변경." />
+    <MESSAGE value="[Update] gif 만들어지도록 변경" />
+    <MESSAGE value="[Update] num_adj 추가" />
+    <MESSAGE value="[Update] 처음 마지막 frame 처리" />
+    <option name="LAST_COMMIT_MESSAGE" value="[Update] 처음 마지막 frame 처리" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -253,12 +362,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>109</line>
+          <line>110</line>
           <option name="timeStamp" value="11" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>228</line>
+          <line>303</line>
           <option name="timeStamp" value="36" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -287,11 +396,6 @@
           <option name="timeStamp" value="156" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/load_pkl.py</url>
-          <line>43</line>
-          <option name="timeStamp" value="214" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/sparse_tensor_test.py</url>
           <line>71</line>
           <option name="timeStamp" value="233" />
@@ -302,24 +406,69 @@
           <option name="timeStamp" value="234" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>210</line>
+          <option name="timeStamp" value="266" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>207</line>
+          <option name="timeStamp" value="276" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>192</line>
+          <option name="timeStamp" value="286" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/plot_output.py</url>
+          <line>39</line>
+          <option name="timeStamp" value="304" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/plot_output.py</url>
+          <line>47</line>
+          <option name="timeStamp" value="306" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/plot_output.py</url>
+          <line>17</line>
+          <option name="timeStamp" value="343" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>163</line>
+          <option name="timeStamp" value="352" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/train_ws.py</url>
-          <line>49</line>
-          <option name="timeStamp" value="238" />
+          <line>295</line>
+          <option name="timeStamp" value="353" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
-          <line>26</line>
-          <option name="timeStamp" value="241" />
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>290</line>
+          <option name="timeStamp" value="354" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
-          <line>31</line>
-          <option name="timeStamp" value="242" />
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>257</line>
+          <option name="timeStamp" value="356" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/nets/GALA.py</url>
-          <line>13</line>
-          <option name="timeStamp" value="243" />
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>108</line>
+          <option name="timeStamp" value="366" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>130</line>
+          <option name="timeStamp" value="377" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>123</line>
+          <option name="timeStamp" value="379" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

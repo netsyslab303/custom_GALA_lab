@@ -20,7 +20,7 @@ from tensorflow import keras
 
 normalized_point = 1
 num_adj = 1
-batch = 256
+batch = 128
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
 num_noise = 3
@@ -29,7 +29,7 @@ home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/weight_temporal_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
+                    default="weights/s_t_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
                                                                                frame_interval, num_noise), type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
@@ -74,14 +74,8 @@ def making_skeleton_adj():
     for i in range(time_input):
         init_adj_mat[i][i] = copy.deepcopy(adj_mat)
         if num_adj == 1:
-            if 0 < i < time_input - 1:
+            if i < time_input - 1:
                 init_idt_mat[i][i + 1] = idt_mat
-            elif i == 0:
-                init_idt_mat[i][i + 1] = idt_mat
-                init_idt_mat[i][i + 2] = idt_mat
-            elif i == time_input - 1:
-                init_idt_mat[i][i - 1] = idt_mat
-                init_idt_mat[i][i - 2] = idt_mat
         elif num_adj == 2:
             if i < time_input - 2:
                 init_idt_mat[i][i + 1] = idt_mat
@@ -103,20 +97,18 @@ def making_skeleton_adj():
     return adj_csr, idj_csr
 
 
-def get_affinity_skeleton():
-    spectral, temporal = making_skeleton_adj()
-    spectral.toarray()
-    temporal.toarray()
-    spectral = spectral * np.exp(-1)
-    temporal = temporal * np.exp(-1)*2
-    A = spectral + temporal
+def get_affinity_skeleton(A, domain):
+    A.toarray()
+    A = A * np.exp(-1)
     A = A + A.T
     A = ss.csr_matrix.todense(A)
     eye = np.eye(A.shape[0])
-    tmp = np.asarray(A)
+
     Asm = A + eye
+    tmp = np.squeeze(np.asarray(Asm))
     Dsm = 1 / np.sqrt(np.sum(Asm, -1))
     DADsm = ss.csr_matrix(np.multiply(np.multiply(Asm, Dsm).T, Dsm).reshape(-1))
+
     Asp = 2 * eye - A
     Dsp = 1 / np.sqrt(np.sum(2 * eye + A, -1))
     DADsp = ss.csr_matrix(np.multiply(np.multiply(Asp, Dsp).T, Dsp).reshape(-1))
@@ -125,7 +117,7 @@ def get_affinity_skeleton():
     DADsp_indices = np.vstack([DADsp.indices // A.shape[0], DADsp.indices % A.shape[0]]).T
     DAD = {'DADsm_indices': DADsm_indices, 'DADsm_values': DADsm.data.astype(np.float32),
            'DADsp_indices': DADsp_indices, 'DADsp_values': DADsp.data.astype(np.float32), 'dense_shape': A.shape}
-    sio.savemat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj), DAD)
+    sio.savemat(home_path + '/pre_built/{}_skeleton{}_{}.mat'.format(domain, time_input,num_adj), DAD)
     return DAD
 
 
@@ -215,15 +207,18 @@ if __name__ == '__main__':
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
     if os.path.isfile(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj)):
-        DAD = sio.loadmat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj))
+        t_DAD = sio.loadmat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj))
+        s_DAD = sio.loadmat(home_path + '/pre_built/spectral_skeleton{}_{}.mat'.format(time_input, num_adj))
     else:
-        DAD = get_affinity_skeleton()
+        s_adj, t_adj = making_skeleton_adj
+        s_DAD = get_affinity_skeleton(s_adj, 'temporal')
+        t_DAD = get_affinity_skeleton(t_adj, 'spectral')
 
     features, test, org_test = load_pkl()
-    model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
+    model = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD , name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weights/weight_temporal_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
+        model.load_weights('weights/weight_edge_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
                            options=None)
     init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
                                                                                             [train_lr, finetune_lr])
