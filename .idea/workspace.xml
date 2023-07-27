@@ -6,9 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="[Update] WS_Noising point 주변관절 값으로 사용,">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/nets/GALA.py" beforeDir="false" afterPath="$PROJECT_DIR$/nets/GALA.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/op_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/op_util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/trained_params.mat" beforeDir="false" afterPath="$PROJECT_DIR$/test/trained_params.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plot_output.py" beforeDir="false" afterPath="$PROJECT_DIR$/plot_output.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_ws.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_ws_seperated_temporal.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws_seperated_temporal.py" afterDir="false" />
     </list>
@@ -181,7 +180,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws_seperated_temporal.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="PARAMETERS" value="--load_model --test" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -190,11 +189,11 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.train_ws_seperated_temporal" />
       <item itemvalue="Python.make_val_noising_pkl" />
       <item itemvalue="Python.op_util" />
       <item itemvalue="Python.plot_output" />
       <item itemvalue="Python.train_ws" />
-      <item itemvalue="Python.train_ws_seperated_temporal" />
     </list>
     <recent_temporary>
       <list>
@@ -332,7 +331,15 @@
       <option name="project" value="LOCAL" />
       <updated>1690282600512</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="[Update] spectra -&gt; temporal">
+      <option name="closed" value="true" />
+      <created>1690369288805</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1690369288805</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -350,7 +357,8 @@
     <MESSAGE value="[Update] gif 만들어지도록 변경" />
     <MESSAGE value="[Update] num_adj 추가" />
     <MESSAGE value="[Update] 처음 마지막 frame 처리" />
-    <option name="LAST_COMMIT_MESSAGE" value="[Update] 처음 마지막 frame 처리" />
+    <MESSAGE value="[Update] spectra -&gt; temporal" />
+    <option name="LAST_COMMIT_MESSAGE" value="[Update] spectra -&gt; temporal" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -407,23 +415,18 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>210</line>
+          <line>208</line>
           <option name="timeStamp" value="266" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>207</line>
+          <line>205</line>
           <option name="timeStamp" value="276" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>192</line>
+          <line>190</line>
           <option name="timeStamp" value="286" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/plot_output.py</url>
-          <line>39</line>
-          <option name="timeStamp" value="304" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/plot_output.py</url>
@@ -431,13 +434,8 @@
           <option name="timeStamp" value="306" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/plot_output.py</url>
-          <line>17</line>
-          <option name="timeStamp" value="343" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>163</line>
+          <line>161</line>
           <option name="timeStamp" value="352" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -469,6 +467,26 @@
           <url>file://$PROJECT_DIR$/train_ws.py</url>
           <line>123</line>
           <option name="timeStamp" value="379" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>151</line>
+          <option name="timeStamp" value="383" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train_ws.py</url>
+          <line>159</line>
+          <option name="timeStamp" value="384" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>158</line>
+          <option name="timeStamp" value="385" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/plot_output.py</url>
+          <line>17</line>
+          <option name="timeStamp" value="386" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

@@ -210,7 +210,7 @@ if __name__ == '__main__':
         t_DAD = sio.loadmat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj))
         s_DAD = sio.loadmat(home_path + '/pre_built/spectral_skeleton{}_{}.mat'.format(time_input, num_adj))
     else:
-        s_adj, t_adj = making_skeleton_adj
+        s_adj, t_adj = making_skeleton_adj()
         s_DAD = get_affinity_skeleton(s_adj, 'temporal')
         t_DAD = get_affinity_skeleton(t_adj, 'spectral')
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     model = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD , name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weights/weight_edge_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
+        model.load_weights('weights/s_t_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
                            options=None)
     init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
                                                                                             [train_lr, finetune_lr])
@@ -254,26 +254,26 @@ if __name__ == '__main__':
                     tf.summary.scalar('Initialization/train', current_loss, step=epoch + 1)
                     init_loss.reset_states()
 
-                if epoch % do_test == 0 or epoch == maximum_epoch - 1:
-                    for num in range(len(test) // batch):
-                        tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
-                        tests = tests.reshape(-1, 17 * time_input, 2)
-                        org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
-                        org_tests = org_tests.reshape(-1, 17 * time_input, 2)
-                        validate(tests, org_tests, num)
-                    tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
-                    tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
-                    tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
-
-                    template = 'Epoch: {0:3d}, NMI: {1:0.4f}, ARI.: {2:0.4f}'
-                    print(template.format(epoch + 1, NMI.result(), ARI.result()))
-
-                    NMI.reset_states()
-                    ARI.reset_states()
-
-                    params = {}
-                    for v in model.variables:
-                        params[v.name] = v.numpy()
+                # if epoch % do_test == 0 or epoch == maximum_epoch - 1:
+                #     for num in range(len(test) // batch):
+                #         tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
+                #         tests = tests.reshape(-1, 17 * time_input, 2)
+                #         org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
+                #         org_tests = org_tests.reshape(-1, 17 * time_input, 2)
+                #         validate(tests, org_tests, num)
+                #     tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
+                #     tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
+                #     tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
+                #
+                #     template = 'Epoch: {0:3d}, NMI: {1:0.4f}, ARI.: {2:0.4f}'
+                #     print(template.format(epoch + 1, NMI.result(), ARI.result()))
+                #
+                #     NMI.reset_states()
+                #     ARI.reset_states()
+                #
+                #     params = {}
+                #     for v in model.variables:
+                #         params[v.name] = v.numpy()
                     # sio.savemat(args.train_dir + '/trained_params.mat', params)
 
         else:

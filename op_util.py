@@ -10,7 +10,7 @@ import scipy.sparse as ss
 import sklearn.metrics as sklm
 import cv2
 from nets import SVD
-import train_ws
+import train_ws_seperated_temporal
 import plot_output
 
 
@@ -156,13 +156,11 @@ def Optimizer(model, LR):
         ARI.update_state(ari_score)
 
     def validate2(input, org, batch):
-        noised, acc_rnd = train_ws.make_noise(input)
+        noised, acc_rnd = train_ws_seperated_temporal.make_noise(input)
         H = model(noised, training=False)
-        np.save("input", org)
         output = np.array(H)
-        output = train_ws.denormalize_data(output, org)
-        np.save("output", output)
-        # plot_output.save_as_image(org, output, batch)
+        output = train_ws_seperated_temporal.denormalize_data(output, org)
+        plot_output.save_as_image(org, output, batch)
         # norm_dist = 0
         # dist = 0
         # for i in range(50):
@@ -197,14 +195,14 @@ def Optimizer(model, LR):
             for num_person in range(len(annot[num]['keypoint'])):
                 # pkl 행동들의 frame수가 time_input으로 딱 나눠지지 않기 때문에 마지막 배열의 크기를 맞춰준다.
                 inputs = annot[num]['keypoint'][num_person]
-                time = train_ws.time_input
+                time = train_ws_seperated_temporal.time_input
                 cut = len(inputs) // time
                 res = len(inputs) % time
                 input_1 = inputs[0:cut*time].reshape(-1, 17*time, 2)
                 input_2 = inputs[-time:].reshape(-1, 17*time, 2)
                 inputs = np.append(input_1,input_2, axis=0)
-                inputs = train_ws.normalize_data(inputs)
-                H = train_ws.denormalize_data(np.array(model(inputs, training=False))).reshape(-1, 17, 2)
+                inputs = train_ws_seperated_temporal.normalize_data(inputs)
+                H = train_ws_seperated_temporal.denormalize_data(np.array(model(inputs, training=False))).reshape(-1, 17, 2)
                 output_1 = H[0:cut*time]
                 output_2 = H[-res:]
                 output = np.append(output_1,output_2, axis=0)

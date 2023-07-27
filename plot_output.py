@@ -16,7 +16,7 @@ neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
 
 def save_as_image(input, output, batch):
     inp = input.reshape([len(input), -1, 17, 2])
-    oup = ouput.reshape([len(output), -1, 17, 2])
+    oup = output.reshape([len(output), -1, 17, 2])
     for i in range(len(inp)):
         image_dir = path + '/images/batch_{}/{}'.format(batch,i)
         if os.path.exists(image_dir):

@@ -19,11 +19,11 @@ import torch
 from tensorflow import keras
 
 normalized_point = 1
-num_adj = 2
-batch = 128
-time_input = 30  # 입력으로 사용되는 frame 수
-frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 10
+num_adj = 1
+batch = 512
+time_input = 10  # 입력으로 사용되는 frame 수
+frame_interval = 10  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
+num_noise = 2
 
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
@@ -148,12 +148,15 @@ def normalize_data(joint_data):
     return joint_data
 
 
-def denormalize_data(joint_data):
-    # 원래 x,y 좌표로
-    # joint_data[:, :, 0] = joint_data[:, :, 0]*(1920/2)+(1920/2)
-    # joint_data[:, :, 1] = joint_data[:, :, 1]*(1080/2)+(1080/2)
-    joint_data[:, :, 0] *= 1920
-    joint_data[:, :, 1] *= 1080
+def denormalize_data(joint_data, org):
+    joint_data = joint_data.reshape(-1, time_input, 17, 2)
+    org = org.reshape(-1, time_input, 17, 2)
+    center_x = np.array(org[:, :, 0])
+    center_y = np.array(org[:, :, 1])
+    for batch_idx in range(len(joint_data)):
+        for frame_idx in range(time_input):
+            joint_data[batch_idx, frame_idx, :, 0] = (joint_data[batch_idx, frame_idx, :, 0] + (1 - normalized_point))* center_x[batch_idx, frame_idx, 0]
+            joint_data[batch_idx, frame_idx, :, 1] = (joint_data[batch_idx, frame_idx, :, 1] + (1 - normalized_point))* center_y[batch_idx, frame_idx, 1]
     return joint_data
 
 
@@ -165,28 +168,42 @@ def load_pkl():
         with open(pkl_file, 'rb') as f:
             joint_data = pickle.load(f)
 
+        org_pkl_file = home_path + '/normalized_input/Org_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                       frame_interval)
+        with open(org_pkl_file, 'rb') as f:
+            org_data = pickle.load(f)
+
     else:
         pkl_file = home_path + '/ntu60_hrnet.pkl'
         with open(pkl_file, 'rb') as f:
             data = pickle.load(f)
 
         joint_data = []
+        org_data = []
         data = data['annotations']
 
         for num in range(len(data)):
             if len(data[num]['keypoint']) == 1:
-                normalized = normalize_data(data[num]['keypoint'][0])
+                n_data = copy.deepcopy(data[num]['keypoint'][0])
+                normalized = normalize_data(n_data)
                 for num1 in range(0, len(normalized), frame_interval):
                     end = num1 + time_input
                     if end <= len(normalized):
                         joint_data.append(normalized[num1:end])
+                        org_data.append(data[num]['keypoint'][0][num1:end])
 
         with open(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
                                                                                       frame_interval), 'wb') as f:
             pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
+
+        with open(home_path + '/normalized_input/Org_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                      frame_interval), 'wb') as f:
+            pickle.dump(org_data, f, pickle.HIGHEST_PROTOCOL)
+
     train = copy.deepcopy(joint_data[0:-batch * 20])
     test = copy.deepcopy(joint_data[-batch * 20:])
-    return train, test
+    org_test = copy.deepcopy(org_data[-batch * 20:])
+    return train, test, org_test
 
 
 if __name__ == '__main__':
@@ -210,11 +227,11 @@ if __name__ == '__main__':
     else:
         DAD = get_affinity_skeleton()
 
-    features, test = load_pkl()
+    features, test, org_test = load_pkl()
     model = GALA.Model(DAD=DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weights/weight_modified_adj1_128_30_15_10.h5', skip_mismatch=False, by_name=False,
+        model.load_weights('weights/weight_modified_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
                            options=None)
     init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
                                                                                             [train_lr, finetune_lr])
@@ -232,6 +249,7 @@ if __name__ == '__main__':
         if args.test:
             for epoch in range(maximum_epoch):
                 random.shuffle(features)  # 데이터셋을 매 epoch마다 shuffle (loss함수 치우치지 않도록)
+                tmp = len(features) // batch
                 for num in range(len(features) // batch):
                     feature = np.array(features[num * batch:(num + 1) * batch]).astype(np.float32)
                     feature = feature.reshape(-1, 17 * time_input, 2)
@@ -253,7 +271,7 @@ if __name__ == '__main__':
                     for num in range(len(test) // batch):
                         tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
                         tests = tests.reshape(-1, 17 * time_input, 2)
-                        validate(tests, k)
+                        validate(tests, k, batch)
                     tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
                     tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
                     tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
@@ -273,7 +291,9 @@ if __name__ == '__main__':
             for num in range(len(test) // batch):
                 tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
                 tests = tests.reshape(-1, 17 * time_input, 2)
-                validate(tests, k)
+                org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
+                org_tests = org_tests.reshape(-1, 17 * time_input, 2)
+                validate(tests, org_tests, num)
             # make_pkl(spt='xsub_val')
 '''
         if finetune_epoch > 0:
