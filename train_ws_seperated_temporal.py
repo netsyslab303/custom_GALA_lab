@@ -23,13 +23,13 @@ num_adj = 1
 batch = 128
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 3
+num_noise = 10
 
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/s_t_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
+                    default="weights/t_s_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
                                                                                frame_interval, num_noise), type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
@@ -43,11 +43,14 @@ neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
 
 def make_noise(input_feature):
     noised_out = copy.deepcopy(input_feature)
-    acc_rnd = []
+    n_frame = []
+    n_joint = []
     for batch_idx in range(len(input_feature)):
         # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
         rnd_frame = random.sample(range(0, time_input), num_noise)
         rnd_joint = random.randint(1, 16)
+        n_frame.append(rnd_frame)
+        n_joint.append(rnd_joint)
         # zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
         # noised_out[batch_idx][zero,:] = 0
         for i, j in neighbor_link:
@@ -57,7 +60,7 @@ def make_noise(input_feature):
         noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
         neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
         noised_out[batch_idx][noised_point, :] = noised_out[batch_idx][neighbor_point, :]
-    return noised_out.astype(np.float32), acc_rnd
+    return noised_out.astype(np.float32), n_frame, n_joint
 
 
 def making_skeleton_adj():
@@ -117,7 +120,7 @@ def get_affinity_skeleton(A, domain):
     DADsp_indices = np.vstack([DADsp.indices // A.shape[0], DADsp.indices % A.shape[0]]).T
     DAD = {'DADsm_indices': DADsm_indices, 'DADsm_values': DADsm.data.astype(np.float32),
            'DADsp_indices': DADsp_indices, 'DADsp_values': DADsp.data.astype(np.float32), 'dense_shape': A.shape}
-    sio.savemat(home_path + '/pre_built/{}_skeleton{}_{}.mat'.format(domain, time_input,num_adj), DAD)
+    sio.savemat(home_path + '/pre_built/{}_skeleton{}_{}.mat'.format(domain, time_input, num_adj), DAD)
     return DAD
 
 
@@ -207,18 +210,18 @@ if __name__ == '__main__':
     tf.config.experimental.set_memory_growth(gpus[0], True)
 
     if os.path.isfile(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj)):
-        t_DAD = sio.loadmat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj))
-        s_DAD = sio.loadmat(home_path + '/pre_built/spectral_skeleton{}_{}.mat'.format(time_input, num_adj))
+        s_DAD = sio.loadmat(home_path + '/pre_built/temporal_skeleton{}_{}.mat'.format(time_input, num_adj))
+        t_DAD = sio.loadmat(home_path + '/pre_built/spectral_skeleton{}_{}.mat'.format(time_input, num_adj))
     else:
         s_adj, t_adj = making_skeleton_adj()
-        s_DAD = get_affinity_skeleton(s_adj, 'temporal')
-        t_DAD = get_affinity_skeleton(t_adj, 'spectral')
+        s_DAD = get_affinity_skeleton(s_adj, 'spectral')
+        t_DAD = get_affinity_skeleton(t_adj, 'temporal')
 
     features, test, org_test = load_pkl()
-    model = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD , name='GALA', batch_size=batch, trainable=True, time_input=time_input)
+    model = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
         model.built = True
-        model.load_weights('weights/s_t_1_adj1_30_15_3.h5', skip_mismatch=False, by_name=False,
+        model.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
                            options=None)
     init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
                                                                                             [train_lr, finetune_lr])
@@ -240,7 +243,7 @@ if __name__ == '__main__':
                 for num in range(len(features) // batch):
                     feature = np.array(features[num * batch:(num + 1) * batch]).astype(np.float32)
                     feature = feature.reshape(-1, 17 * time_input, 2)
-                    noised_input, _ = make_noise(feature)
+                    noised_input, _, _ = make_noise(feature)
                     init_step(feature, noised_input, weight_decay, k)
                 step += 1
                 model.save_weights('{}.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
@@ -277,13 +280,13 @@ if __name__ == '__main__':
                     # sio.savemat(args.train_dir + '/trained_params.mat', params)
 
         else:
-            for num in range(len(test) // batch):
-                tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
-                tests = tests.reshape(-1, 17 * time_input, 2)
-                org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
-                org_tests = org_tests.reshape(-1, 17 * time_input, 2)
-                validate(tests, org_tests, num)
-            # make_pkl(spt='xsub_val')
+            # for num in range(len(test) // batch):
+            #     tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
+            #     tests = tests.reshape(-1, 17 * time_input, 2)
+            #     org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
+            #     org_tests = org_tests.reshape(-1, 17 * time_input, 2)
+            #     validate(tests, org_tests, num)
+            make_pkl(spt='xsub_val')
 '''
         if finetune_epoch > 0:
             train_time = time.time()

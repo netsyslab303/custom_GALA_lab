@@ -156,11 +156,11 @@ def Optimizer(model, LR):
         ARI.update_state(ari_score)
 
     def validate2(input, org, batch):
-        noised, acc_rnd = train_ws_seperated_temporal.make_noise(input)
+        noised, noised_frame, noised_joint = train_ws_seperated_temporal.make_noise(input)
         H = model(noised, training=False)
         output = np.array(H)
         output = train_ws_seperated_temporal.denormalize_data(output, org)
-        plot_output.save_as_image(org, output, batch)
+        plot_output.save_as_image(org, output, batch, noised_frame, noised_joint)
         # norm_dist = 0
         # dist = 0
         # for i in range(50):
@@ -181,19 +181,29 @@ def Optimizer(model, LR):
 
     def make_pkl(spt):
         home_path = os.path.dirname(os.path.abspath(__file__))
-        pkl_file = home_path + '/Noising_keypoint_0.6_xsub_val.pkl'
+        pkl_file = home_path + '/Noising_keypoint_0.3_xsub_val.pkl'
+        noising_frame_num = home_path + '/noising_frame_num_0.3_xsub_val.pkl'
+        noising_joint_num = home_path + '/noising_joint_num_0.3_xsub_val.pkl'
         with open(pkl_file, 'rb') as f:
             data = pickle.load(f)
+        with open(noising_frame_num, 'rb') as f:
+            noising_frames = pickle.load(f)
+        with open(noising_joint_num, 'rb') as f:
+            noising_joints = pickle.load(f)
         if spt:
-            split, data = data['split'], data['annotations']
-            identifier = 'filename' if 'filen+ame' in data[0] else 'frame_dir'
+            split, data_annot = data['split'], data['annotations']
+            identifier = 'filename' if 'filen+ame' in data_annot[0] else 'frame_dir'
             split = set(split[spt])
-            annot = [x for x in data if x[identifier] in split]
+            annot = [x for x in data_annot if x[identifier] in split]
         else:
             annot = data['annotations']
         for num in range(len(annot)): #len(annot)
-            for num_person in range(len(annot[num]['keypoint'])):
+            if len(annot[num]['keypoint']) == 1:
+            # for num_person in range(len(annot[num]['keypoint'])):
                 # pkl 행동들의 frame수가 time_input으로 딱 나눠지지 않기 때문에 마지막 배열의 크기를 맞춰준다.
+                num_person = 0
+                rnd_frame = noising_frames[num][num_person]
+                rnd_joint = noising_joints[num][num_person]
                 inputs = annot[num]['keypoint'][num_person]
                 time = train_ws_seperated_temporal.time_input
                 cut = len(inputs) // time
@@ -201,13 +211,32 @@ def Optimizer(model, LR):
                 input_1 = inputs[0:cut*time].reshape(-1, 17*time, 2)
                 input_2 = inputs[-time:].reshape(-1, 17*time, 2)
                 inputs = np.append(input_1,input_2, axis=0)
+                org = copy.deepcopy(inputs)
                 inputs = train_ws_seperated_temporal.normalize_data(inputs)
-                H = train_ws_seperated_temporal.denormalize_data(np.array(model(inputs, training=False))).reshape(-1, 17, 2)
+                H = train_ws_seperated_temporal.denormalize_data(np.array(model(inputs, training=False)),org).reshape(-1, 17, 2)
                 output_1 = H[0:cut*time]
                 output_2 = H[-res:]
-                output = np.append(output_1,output_2, axis=0)
-                data['annotations'][num]['keypoint'][num_person] = output
-            with open('Denoising.pkl', 'wb') as f:
-                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+                if res == 0:
+                    output = output_1
+                else:
+                    output = np.append(output_1,output_2, axis=0)
+                if len(data_annot[num]['keypoint'][num_person]) == len(output):
+                    #data['annotations'][num]['keypoint'][num_person] = output
+                    data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output[rnd_frame, rnd_joint, :]
+
+        with open('Denoising_point.pkl', 'wb') as f:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
     return training, train_loss, finetuning, validate2, make_pkl, ACC, NMI, ARI
+
+
+# home_path = os.path.dirname(os.path.abspath(__file__))
+# pkl_file = home_path + '/Denoising.pkl'
+# with open(pkl_file, 'rb') as f:
+#     Denosing_data = pickle.load(f)
+#
+# pkl_file = home_path + '/Noising_keypoint_0.3_xsub_val.pkl'
+# with open(pkl_file, 'rb') as f:
+#     Nosing_data = pickle.load(f)
+#
+# print()
