@@ -4,11 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="[Update] WS_Noising point 주변관절 값으로 사용,">
+    <list default="true" id="a681e535-63e2-45b2-9ba6-800b370761dd" name="Changes" comment="[Update] validate 시 Plot 이미지 저장">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gen_bone_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/gen_bone_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/make_val_noising_pkl.py" beforeDir="false" afterPath="$PROJECT_DIR$/make_val_noising_pkl.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/op_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/op_util.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/plot_output.py" beforeDir="false" afterPath="$PROJECT_DIR$/plot_output.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_ws.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train_ws_seperated_temporal.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_ws_seperated_temporal.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -61,7 +62,28 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.train_ws_seperated_temporal">
+  <component name="RunManager" selected="Python.gen_bone_data">
+    <configuration name="gen_bone_data" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="custom_GALA_lab" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/gen_bone_data.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="make_val_noising_pkl" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -125,48 +147,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="train_ws" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="custom_GALA_lab" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="train_ws" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="custom_GALA_lab" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws.py" />
-      <option name="PARAMETERS" value="--load_model --test" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="train_ws_seperated_temporal" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="custom_GALA_lab" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -180,7 +160,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_ws_seperated_temporal.py" />
-      <option name="PARAMETERS" value="--load_model --test" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -189,19 +169,19 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.plot_output" />
+      <item itemvalue="Python.gen_bone_data" />
       <item itemvalue="Python.train_ws_seperated_temporal" />
       <item itemvalue="Python.make_val_noising_pkl" />
       <item itemvalue="Python.op_util" />
-      <item itemvalue="Python.plot_output" />
-      <item itemvalue="Python.train_ws" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.train_ws_seperated_temporal" />
-        <item itemvalue="Python.train_ws" />
+        <item itemvalue="Python.gen_bone_data" />
         <item itemvalue="Python.plot_output" />
-        <item itemvalue="Python.make_val_noising_pkl" />
+        <item itemvalue="Python.train_ws_seperated_temporal" />
         <item itemvalue="Python.op_util" />
+        <item itemvalue="Python.make_val_noising_pkl" />
       </list>
     </recent_temporary>
   </component>
@@ -339,8 +319,55 @@
       <option name="project" value="LOCAL" />
       <updated>1690369288805</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="[Update] Spectral_Temporal 별개">
+      <option name="closed" value="true" />
+      <created>1690436416429</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1690436416429</updated>
+    </task>
+    <task id="LOCAL-00018" summary="[Update] validate 시 Plot 이미지 저장">
+      <option name="closed" value="true" />
+      <created>1691054304056</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1691054304056</updated>
+    </task>
+    <task id="LOCAL-00019" summary="[Update] validate 시 Plot 이미지 저장">
+      <option name="closed" value="true" />
+      <created>1692250233782</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1692250233782</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Denoising을 위한 Line 추" />
@@ -358,7 +385,9 @@
     <MESSAGE value="[Update] num_adj 추가" />
     <MESSAGE value="[Update] 처음 마지막 frame 처리" />
     <MESSAGE value="[Update] spectra -&gt; temporal" />
-    <option name="LAST_COMMIT_MESSAGE" value="[Update] spectra -&gt; temporal" />
+    <MESSAGE value="[Update] Spectral_Temporal 별개" />
+    <MESSAGE value="[Update] validate 시 Plot 이미지 저장" />
+    <option name="LAST_COMMIT_MESSAGE" value="[Update] validate 시 Plot 이미지 저장" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -370,7 +399,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>110</line>
+          <line>155</line>
           <option name="timeStamp" value="11" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -414,29 +443,9 @@
           <option name="timeStamp" value="234" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>208</line>
-          <option name="timeStamp" value="266" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>205</line>
-          <option name="timeStamp" value="276" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>190</line>
-          <option name="timeStamp" value="286" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/plot_output.py</url>
-          <line>47</line>
+          <line>70</line>
           <option name="timeStamp" value="306" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>161</line>
-          <option name="timeStamp" value="352" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/train_ws.py</url>
@@ -479,14 +488,24 @@
           <option name="timeStamp" value="384" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/op_util.py</url>
-          <line>158</line>
-          <option name="timeStamp" value="385" />
+          <url>file://$PROJECT_DIR$/make_val_noising_pkl.py</url>
+          <line>79</line>
+          <option name="timeStamp" value="404" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/plot_output.py</url>
-          <line>17</line>
-          <option name="timeStamp" value="386" />
+          <url>file://$PROJECT_DIR$/gen_bone_data.py</url>
+          <line>21</line>
+          <option name="timeStamp" value="415" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/gen_bone_data.py</url>
+          <line>37</line>
+          <option name="timeStamp" value="441" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/op_util.py</url>
+          <line>107</line>
+          <option name="timeStamp" value="458" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

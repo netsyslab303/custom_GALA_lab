@@ -67,11 +67,17 @@ def bone_to_joint(bone):
                      (1, 0), (3, 1), (2, 0), (4, 2)]
     bone = np.array(bone)
     joint = copy.deepcopy(bone)
-    for i, j in neighbor_link:
-        source = j
-        target = i
-        for k in range(joint.shape[1] // 17):
-            joint[:, target + (k * 17), :] = joint[:, source + (k * 17), :] + bone[:, target + (k * 17), :]
+    # 코 (0,0)의 joint는 무조건 1,1로
+    for k in range(joint.shape[1] // 17):
+        joint[:, 0 + (k * 17), :] = 1
+    for joints in range(1,17):
+        for i, j in neighbor_link:
+            if i == joints:
+                source = j
+                target = i
+                for k in range(joint.shape[1] // 17):
+                    joint[:, target + (k * 17), :] = bone[:, source + (k * 17), :] + bone[:, target + (k * 17), :]
+                break
     return joint
 
 
@@ -95,12 +101,12 @@ def Optimizer(model_j, model_b, LR):
     @tf.function
     def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
-            generated_j = model_j(noised_joint, training=True, info='joint')
-            generated_b = model_b(noised_bone, training=True, info='bone')
+            generated_j = model_j(noised_joint, training=True)
+            generated_b = model_b(noised_bone, training=True)
             new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
             new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
             generated_j = (generated_j + new_j) / 2
-            # generated_b = (generated_b + new_b) / 2
+            generated_b = (generated_b + new_b) / 2
             loss_j = tf.reduce_sum(tf.square(input_j - generated_j)) / 2 / input_j.shape[0]
             loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
             total_loss_j = loss_j

@@ -18,7 +18,7 @@ import tensorflow as tf
 import torch
 from tensorflow import keras
 
-normalized_point = 0
+normalized_point = 1
 num_adj = 1
 batch = 64
 time_input = 30  # 입력으로 사용되는 frame 수
