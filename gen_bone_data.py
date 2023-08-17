@@ -6,7 +6,7 @@ import train_ws_seperated_temporal
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--time_input", default=30, type=str)
-parser.add_argument("--frame_interval", default=15, type=int)
+parser.add_argument("--frame_interval", default=100, type=int)
 args = parser.parse_args()
 
 neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
@@ -31,13 +31,10 @@ for data_len in range(len(data['annotations'])):
         key_points = train_ws_seperated_temporal.normalize_data(data['annotations'][data_len]['keypoint'][0])
         bone = copy.deepcopy(key_points)
         bone[:, 0, :] = key_points[:, source, :] - key_points[:, 0, :]
-        for num_joint in range(1, 17):
-            for i, j in neighbor_link:
-                if i == num_joint:
-                    source = j
-                    target = i
-                    break
-            bone[:, num_joint, :] = key_points[:, source, :] - key_points[:, num_joint, :]
+        for i, j in neighbor_link:
+            source = j
+            target = i
+            bone[:, target, :] = key_points[:, target, :] - key_points[:, source, :]
         for num1 in range(0, len(bone), frame_interval):
             end = num1 + time_input
             if end <= len(bone):

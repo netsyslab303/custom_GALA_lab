@@ -29,135 +29,119 @@ def euclidean_distance(input, output, acc):
     return dist
 
 
-# def norm_euclidean_distance(input, output, acc):
-#     dist = 0
-#     for i in range(17):
-#         dist += np.linalg.norm(input[i]-output[i])
-#     return dist
-#
-# def euclidean_distance(input, output, acc):
-#     dist = 0
-#     for i in range(17):
-#         input[i][0] *= 1920
-#         input[i][1] *= 1080
-#         output[i][0] *= 1920
-#         output[i][1] *= 1080
-#         dist += np.linalg.norm(input[i]-output[i])
-#     return dist
+def norm_euclidean_distance2(input, output, acc):
+    dist = 0
+    for i in range(17):
+        dist += np.linalg.norm(input[i] - output[i])
+    return dist
 
-def Optimizer(model, LR):
-    with tf.name_scope('Optimizer_w_Distillation'):
-        optimizer = tf.keras.optimizers.Adam(LR[0])
+
+def euclidean_distance2(input, output, acc):
+    dist = 0
+    for i in range(17):
+        input[i][0] *= 1920
+        input[i][1] *= 1080
+        output[i][0] *= 1920
+        output[i][1] *= 1080
+        dist += np.linalg.norm(input[i] - output[i])
+    return dist
+
+
+def joint_to_bone(joint):
+    neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
+                     (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
+                     (1, 0), (3, 1), (2, 0), (4, 2)]
+    joint = np.array(joint)
+    bone = copy.deepcopy(joint)
+    for i, j in neighbor_link:
+        source = j
+        target = i
+        for k in range(joint.shape[1] // 17):
+            bone[:, target + (k * 17), :] = joint[:, target + (k * 17), :] - joint[:, source + (k * 17), :]
+    return bone
+
+
+def bone_to_joint(bone):
+    neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
+                     (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
+                     (1, 0), (3, 1), (2, 0), (4, 2)]
+    bone = np.array(bone)
+    joint = copy.deepcopy(bone)
+    for i, j in neighbor_link:
+        source = j
+        target = i
+        for k in range(joint.shape[1] // 17):
+            joint[:, target + (k * 17), :] = joint[:, source + (k * 17), :] + bone[:, target + (k * 17), :]
+    return joint
+
+
+def Optimizer(model_j, model_b, LR):
+    with tf.name_scope('Optimizer_w_Distillation_j'):
+        j_optimizer = tf.keras.optimizers.Adam(LR[0])
         optimizer_tune = tf.keras.optimizers.Adam(LR[1])
 
-        train_loss = tf.keras.metrics.Mean(name='train_loss')
+        train_loss_j = tf.keras.metrics.Mean(name='train_loss_j')
         ACC = tf.keras.metrics.Mean(name='ACC')
         NMI = tf.keras.metrics.Mean(name='NMI')
         ARI = tf.keras.metrics.Mean(name='ARI')
+
+    with tf.name_scope('Optimizer_w_Distillation_b'):
+        b_optimizer = tf.keras.optimizers.Adam(LR[0])
+        train_loss_b = tf.keras.metrics.Mean(name='train_loss_b')
 
     l = 5e1
     mu = 1.
 
     @tf.function
-    def training(input, noised_input, weight_decay, k):
-        with tf.GradientTape() as tape:
-            generated = model(noised_input, training=True)
-            loss = tf.reduce_sum(tf.square(input - generated)) / 2 / input.shape[0]
-            total_loss = loss
+    def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k):
+        with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
+            generated_j = model_j(noised_joint, training=True, info='joint')
+            generated_b = model_b(noised_bone, training=True, info='bone')
+            new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
+            new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
+            generated_j = (generated_j + new_j) / 2
+            # generated_b = (generated_b + new_b) / 2
+            loss_j = tf.reduce_sum(tf.square(input_j - generated_j)) / 2 / input_j.shape[0]
+            loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
+            total_loss_j = loss_j
+            total_loss_b = loss_b
             if weight_decay > 0.:
-                total_loss += tf.add_n(
-                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model.trainable_variables])
+                total_loss_j += tf.add_n(
+                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_j.trainable_variables])
+                total_loss_b += tf.add_n(
+                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_b.trainable_variables])
         # gradient 계
-        gradients = tape.gradient(total_loss, model.trainable_variables)
+        gradients_j = tape1.gradient(total_loss_j, model_j.trainable_variables)
+        gradients_b = tape2.gradient(total_loss_b, model_b.trainable_variables)
         # 모델 업데이트
-        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-        train_loss.update_state(loss)
+        j_optimizer.apply_gradients(zip(gradients_j, model_j.trainable_variables))
+        b_optimizer.apply_gradients(zip(gradients_b, model_b.trainable_variables))
+        train_loss_j.update_state(loss_j)
+        train_loss_b.update_state(loss_b)
 
     @tf.function
-    def finetuning(input, weight_decay, k):
-        with tf.GradientTape() as tape:
-            generated = model(input, training=True)
-            loss = tf.reduce_sum(tf.square(input - generated)) / 2 / input.shape[0]
-
-            H = model.H
-            HHT = tf.matmul(H, H, transpose_a=True)
-            s, u, v = SVD.SVD(tf.expand_dims(mu * tf.eye(HHT.shape[0]) + l * HHT, 0), k)
-            scc_loss = mu * l / 2 * tf.linalg.trace(
-                tf.matmul(tf.squeeze(tf.matmul(v, u / tf.reshape(s, [1, 1, k]), transpose_b=True)), HHT))
-            total_loss = loss + scc_loss
-
-            if weight_decay > 0.:
-                total_loss += tf.add_n([tf.reduce_sum(tf.square(v)) * weight_decay for v in model.trainable_variables])
-
-        gradients = tape.gradient(total_loss, model.trainable_variables)
-        optimizer_tune.apply_gradients(zip(gradients, model.trainable_variables))
-        train_loss.update_state(loss)
-
-    def validate(input, labels, k):
-        H = model(input, training=False)
-        H = H.numpy()
-        cv2.imwrite('test2/rec0.png',
-                    (np.clip(np.hstack(list(np.hstack(list(H[:400].reshape(20, 20, 28, 28))))), 0, 1) * 255).astype(
-                        np.uint8))
-        cv2.imwrite('test2/rec1.png',
-                    (np.clip(np.hstack(list(np.hstack(list(H[-400:].reshape(20, 20, 28, 28))))), 0, 1) * 255).astype(
-                        np.uint8))
-        cv2.imwrite('test2/ori.png',
-                    (np.clip(np.hstack(list(np.hstack(list(input[:400].reshape(20, 20, 28, 28))))), 0, 1) * 255).astype(
-                        np.uint8))
-        cv2.imwrite('test2/ori2.png', (
-                    np.clip(np.hstack(list(np.hstack(list(input[-400:].reshape(20, 20, 28, 28))))), 0, 1) * 255).astype(
-            np.uint8))
-        H = model.H
-        latent = H.numpy()
-
-        u, s, v = np.linalg.svd(mu * np.eye(latent.shape[1]) + l * np.matmul(latent.T, latent), full_matrices=False)
-        H_inv = np.matmul(v[:k].T, (u[:, :k] / np.expand_dims(s[:k], 0)).T)
-        A_latent = l * np.matmul(np.matmul(latent, H_inv), latent.T)
-        A_latent = np.maximum(0, A_latent)
-        # ss.save_npz('test2/test_full.npz', ss.csr_matrix(A_latent))
-        print('Optimal A is computes')
-
-        num_labels = np.max(labels) + 1
-
-        clustering = SpectralClustering(n_clusters=num_labels, affinity='precomputed')
-        prediction = clustering.fit(A_latent)
-
-        results = prediction.labels_
-
-        total_true = 0
-        vote_box = {c: 0 for c in range(num_labels)}
-        for i in range(num_labels):
-            matched = labels[results == i]
-            for m in matched:
-                if vote_box.get(m) is not None:
-                    vote_box[m] += 1
-
-            num_true = 0
-            cluster_id = 0
-            for v in vote_box.keys():
-                if vote_box[v] > num_true:
-                    cluster_id = v
-                    num_true = vote_box[v]
-
-            total_true += num_true
-
-            if num_true != 0:
-                del vote_box[cluster_id]
-            for v in vote_box.keys():
-                vote_box[v] = 0
-
-        acc = total_true / labels.shape[0]
-
-        nmi_score = sklm.adjusted_mutual_info_score(labels.reshape(-1), results.reshape(-1))
-        ari_score = sklm.adjusted_rand_score(labels.reshape(-1), results.reshape(-1))
-        ACC.update_state(acc)
-        NMI.update_state(nmi_score)
-        ARI.update_state(ari_score)
+    # def finetuning(input, weight_decay, k):
+    #     with tf.GradientTape() as tape:
+    #         generated = model(input, training=True)
+    #         loss = tf.reduce_sum(tf.square(input - generated)) / 2 / input.shape[0]
+    #
+    #         H = model.H
+    #         HHT = tf.matmul(H, H, transpose_a=True)
+    #         s, u, v = SVD.SVD(tf.expand_dims(mu * tf.eye(HHT.shape[0]) + l * HHT, 0), k)
+    #         scc_loss = mu * l / 2 * tf.linalg.trace(
+    #             tf.matmul(tf.squeeze(tf.matmul(v, u / tf.reshape(s, [1, 1, k]), transpose_b=True)), HHT))
+    #         total_loss = loss + scc_loss
+    #
+    #         if weight_decay > 0.:
+    #             total_loss += tf.add_n([tf.reduce_sum(tf.square(v)) * weight_decay for v in model.trainable_variables])
+    #
+    #     gradients = tape.gradient(total_loss, model.trainable_variables)
+    #     optimizer_tune.apply_gradients(zip(gradients, model.trainable_variables))
+    #    train_loss.update_state(loss)
 
     def validate2(input, org, batch):
         noised, noised_frame, noised_joint = train_ws_seperated_temporal.make_noise(input)
-        H = model(noised, training=False)
+        H = model_j(noised, training=False)  ## 수정필요
         output = np.array(H)
         output = train_ws_seperated_temporal.denormalize_data(output, org)
         plot_output.save_as_image(org, output, batch, noised_frame, noised_joint)
@@ -197,9 +181,9 @@ def Optimizer(model, LR):
             annot = [x for x in data_annot if x[identifier] in split]
         else:
             annot = data['annotations']
-        for num in range(len(annot)): #len(annot)
+        for num in range(len(annot)):  # len(annot)
             if len(annot[num]['keypoint']) == 1:
-            # for num_person in range(len(annot[num]['keypoint'])):
+                # for num_person in range(len(annot[num]['keypoint'])):
                 # pkl 행동들의 frame수가 time_input으로 딱 나눠지지 않기 때문에 마지막 배열의 크기를 맞춰준다.
                 num_person = 0
                 rnd_frame = noising_frames[num][num_person]
@@ -208,27 +192,29 @@ def Optimizer(model, LR):
                 time = train_ws_seperated_temporal.time_input
                 cut = len(inputs) // time
                 res = len(inputs) % time
-                input_1 = inputs[0:cut*time].reshape(-1, 17*time, 2)
-                input_2 = inputs[-time:].reshape(-1, 17*time, 2)
-                inputs = np.append(input_1,input_2, axis=0)
+                input_1 = inputs[0:cut * time].reshape(-1, 17 * time, 2)
+                input_2 = inputs[-time:].reshape(-1, 17 * time, 2)
+                inputs = np.append(input_1, input_2, axis=0)
                 org = copy.deepcopy(inputs)
                 inputs = train_ws_seperated_temporal.normalize_data(inputs)
-                H = train_ws_seperated_temporal.denormalize_data(np.array(model(inputs, training=False)),org).reshape(-1, 17, 2)
-                output_1 = H[0:cut*time]
+                H = train_ws_seperated_temporal.denormalize_data(np.array(model_j(inputs, training=False)),
+                                                                 org).reshape(
+                    -1, 17, 2)  ## 수정필요
+                output_1 = H[0:cut * time]
                 output_2 = H[-res:]
                 if res == 0:
                     output = output_1
                 else:
-                    output = np.append(output_1,output_2, axis=0)
+                    output = np.append(output_1, output_2, axis=0)
                 if len(data_annot[num]['keypoint'][num_person]) == len(output):
-                    #data['annotations'][num]['keypoint'][num_person] = output
-                    data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output[rnd_frame, rnd_joint, :]
+                    # data['annotations'][num]['keypoint'][num_person] = output
+                    data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output[rnd_frame,
+                                                                                                rnd_joint, :]
 
         with open('Denoising_point.pkl', 'wb') as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
-    return training, train_loss, finetuning, validate2, make_pkl, ACC, NMI, ARI
-
+    return training, train_loss_j, train_loss_b, validate2, make_pkl, ACC, NMI, ARI
 
 # home_path = os.path.dirname(os.path.abspath(__file__))
 # pkl_file = home_path + '/Denoising.pkl'

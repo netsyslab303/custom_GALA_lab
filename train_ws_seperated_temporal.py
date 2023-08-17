@@ -18,9 +18,9 @@ import tensorflow as tf
 import torch
 from tensorflow import keras
 
-normalized_point = 1
+normalized_point = 0
 num_adj = 1
-batch = 128
+batch = 64
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
 num_noise = 10
@@ -29,7 +29,7 @@ home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/t_s_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
+                    default="weights/t_t_s_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
                                                                                frame_interval, num_noise), type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
@@ -41,11 +41,12 @@ neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
                  (1, 0), (3, 1), (2, 0), (4, 2)]
 
 
-def make_noise(input_feature):
-    noised_out = copy.deepcopy(input_feature)
+def make_noise(j_feature, b_feature):
+    noised_j_out = copy.deepcopy(j_feature)
+    noised_b_out = copy.deepcopy(b_feature)
     n_frame = []
     n_joint = []
-    for batch_idx in range(len(input_feature)):
+    for batch_idx in range(len(j_feature)):
         # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
         rnd_frame = random.sample(range(0, time_input), num_noise)
         rnd_joint = random.randint(1, 16)
@@ -59,8 +60,23 @@ def make_noise(input_feature):
                 break
         noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
         neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
-        noised_out[batch_idx][noised_point, :] = noised_out[batch_idx][neighbor_point, :]
-    return noised_out.astype(np.float32), n_frame, n_joint
+        noised_j_out[batch_idx][noised_point, :] = noised_j_out[batch_idx][neighbor_point, :]
+
+        for i, j in neighbor_link:
+            if j == rnd_joint:
+                neighbor_joint = i
+                noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
+                neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
+                noised_b_out[batch_idx][neighbor_point, :] = (noised_j_out[batch_idx][neighbor_point, :] -
+                                                      noised_j_out[batch_idx][noised_point, :])
+            elif i == rnd_joint:
+                neighbor_joint = j
+                noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
+                neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
+                noised_b_out[batch_idx][noised_point, :] = (noised_j_out[batch_idx][noised_point, :] -
+                                                      noised_j_out[batch_idx][neighbor_point, :])
+    return noised_j_out.astype(np.float32), noised_b_out.astype(np.float32), n_frame, n_joint
+
 
 
 def making_skeleton_adj():
@@ -150,10 +166,15 @@ def denormalize_data(joint_data, org):
 def load_pkl():
     if os.path.isfile(home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
                                                                                           frame_interval)):
-        pkl_file = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
+        joint_pkl_file = home_path + '/normalized_input/Normalized_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
                                                                                        frame_interval)
-        with open(pkl_file, 'rb') as f:
+        with open(joint_pkl_file, 'rb') as f:
             joint_data = pickle.load(f)
+
+        bone_pkl_file = home_path + '/normalized_input/Normalized_bone_{}_{}.pkl'.format(time_input,
+                                                                                       frame_interval)
+        with open(bone_pkl_file, 'rb') as f:
+            bone_data = pickle.load(f)
 
         org_pkl_file = home_path + '/normalized_input/Org_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
                                                                                     frame_interval)
@@ -167,6 +188,7 @@ def load_pkl():
 
         joint_data = []
         org_data = []
+        bone_data = []
         data = data['annotations']
 
         for num in range(len(data)):
@@ -183,14 +205,17 @@ def load_pkl():
                                                                                       frame_interval), 'wb') as f:
             pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
 
+
         with open(home_path + '/normalized_input/Org_data_{}_{}_{}.pkl'.format(normalized_point, time_input,
                                                                                frame_interval), 'wb') as f:
             pickle.dump(org_data, f, pickle.HIGHEST_PROTOCOL)
 
-    train = copy.deepcopy(joint_data[0:-batch * 20])
-    test = copy.deepcopy(joint_data[-batch * 20:])
+    train_joint = copy.deepcopy(joint_data[0:-batch * 20])
+    test_joint = copy.deepcopy(joint_data[-batch * 20:])
+    train_bone = copy.deepcopy(bone_data[0:-batch * 20])
+    test_bone = copy.deepcopy(bone_data[-batch * 20:])
     org_test = copy.deepcopy(org_data[-batch * 20:])
-    return train, test, org_test
+    return train_joint, test_joint, train_bone, test_bone, org_test
 
 
 if __name__ == '__main__':
@@ -202,7 +227,7 @@ if __name__ == '__main__':
     early_stopping = 20
     finetune_epoch = 50
 
-    do_log = 10
+    do_log = 1
     do_test = 100
 
     tf.debugging.set_log_device_placement(False)
@@ -217,13 +242,17 @@ if __name__ == '__main__':
         s_DAD = get_affinity_skeleton(s_adj, 'spectral')
         t_DAD = get_affinity_skeleton(t_adj, 'temporal')
 
-    features, test, org_test = load_pkl()
-    model = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
+    features_j, test_j, features_b, test_b, org_test = load_pkl()
+    model_j = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
+    model_b = GALA.Model(s_DAD=s_DAD, t_DAD=t_DAD, name='GALA', batch_size=batch, trainable=True, time_input=time_input)
     if args.load_model:
-        model.built = True
-        model.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
+        model_j.built = True
+        model_b.built = True
+        model_j.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
                            options=None)
-    init_step, init_loss, finetuning, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model,
+        model_b.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
+                           options=None)
+    init_step, init_loss_j, init_loss_b, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model_j, model_b,
                                                                                             [train_lr, finetune_lr])
     # training, train_loss, finetuning, validate, ACC, NMI, ARI
 
@@ -238,46 +267,36 @@ if __name__ == '__main__':
         # noised_inpute은 op_util.py에서 처리.
         if args.test:
             for epoch in range(maximum_epoch):
-                random.shuffle(features)  # 데이터셋을 매 epoch마다 shuffle (loss함수 치우치지 않도록)
-                tmp = len(features) // batch
-                for num in range(len(features) // batch):
-                    feature = np.array(features[num * batch:(num + 1) * batch]).astype(np.float32)
-                    feature = feature.reshape(-1, 17 * time_input, 2)
-                    noised_input, _, _ = make_noise(feature)
-                    init_step(feature, noised_input, weight_decay, k)
+                temp = list(zip(features_j, features_b))
+                random.shuffle(temp)
+                features_j, features_b = zip(*temp)
+                # res1 and res2 come out as tuples, and so must be converted to lists.
+                features_j, features_b = list(features_j), list(features_b)
+                tmp = len(features_j) // batch
+                for num in range(len(features_j) // batch):
+                    feature_j = np.array(features_j[num * batch:(num + 1) * batch]).astype(np.float32)
+                    feature_j = feature_j.reshape(-1, 17 * time_input, 2)
+                    feature_b = np.array(features_b[num * batch:(num + 1) * batch]).astype(np.float32)
+                    feature_b = feature_b.reshape(-1, 17 * time_input, 2)
+                    noised_j, noised_b, _, _ = make_noise(feature_j, feature_b)
+                    init_step(feature_j, feature_b, noised_j, noised_b, weight_decay, k)
                 step += 1
-                model.save_weights('{}.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
+                model_j.save_weights('{}_J.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
+                model_b.save_weights('{}_B.h5'.format(args.save_model_name), overwrite=True, save_format=None, options=None)
                 # model.save('path_to_my_model', save_format='tf')
 
                 if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                     template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
-                    print(template.format(step, init_loss.result(), (time.time() - train_time) / do_log))
+                    print(template.format(step, init_loss_j.result(), (time.time() - train_time) / do_log))
+                    print(template.format(step, init_loss_b.result(), (time.time() - train_time) / do_log))
+                    print()
                     train_time = time.time()
-                    current_loss = init_loss.result()
-                    tf.summary.scalar('Initialization/train', current_loss, step=epoch + 1)
-                    init_loss.reset_states()
-
-                # if epoch % do_test == 0 or epoch == maximum_epoch - 1:
-                #     for num in range(len(test) // batch):
-                #         tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
-                #         tests = tests.reshape(-1, 17 * time_input, 2)
-                #         org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
-                #         org_tests = org_tests.reshape(-1, 17 * time_input, 2)
-                #         validate(tests, org_tests, num)
-                #     tf.summary.scalar('Metrics/ACC', ACC.result(), step=epoch + 1)
-                #     tf.summary.scalar('Metrics/NMI', NMI.result(), step=epoch + 1)
-                #     tf.summary.scalar('Metrics/ARI', ARI.result(), step=epoch + 1)
-                #
-                #     template = 'Epoch: {0:3d}, NMI: {1:0.4f}, ARI.: {2:0.4f}'
-                #     print(template.format(epoch + 1, NMI.result(), ARI.result()))
-                #
-                #     NMI.reset_states()
-                #     ARI.reset_states()
-                #
-                #     params = {}
-                #     for v in model.variables:
-                #         params[v.name] = v.numpy()
-                    # sio.savemat(args.train_dir + '/trained_params.mat', params)
+                    current_loss_j = init_loss_j.result()
+                    current_loss_b = init_loss_b.result()
+                    tf.summary.scalar('Initialization/train', current_loss_j, step=epoch + 1)
+                    tf.summary.scalar('Initialization/train', current_loss_b, step=epoch + 1)
+                    init_loss_j.reset_states()
+                    init_loss_b.reset_states()
 
         else:
             # for num in range(len(test) // batch):
@@ -287,27 +306,3 @@ if __name__ == '__main__':
             #     org_tests = org_tests.reshape(-1, 17 * time_input, 2)
             #     validate(tests, org_tests, num)
             make_pkl(spt='xsub_val')
-'''
-        if finetune_epoch > 0:
-            train_time = time.time()
-            for epoch in range(finetune_epoch):
-                for feature in test:
-                    finetuning(feature, weight_decay, k)
-                step += 1
-
-            validate(test, k)
-            tf.summary.scalar('Metrics/ACC', ACC.result(), step=maximum_epoch + epoch + 1)
-            tf.summary.scalar('Metrics/NMI', NMI.result(), step=maximum_epoch + epoch + 1)
-            tf.summary.scalar('Metrics/ARI', ARI.result(), step=maximum_epoch + epoch + 1)
-
-            template = 'Epoch: {0:3d}, ACC: {1:0.4f}, NMI: {2:0.4f}, ARI.: {3:0.4f}'
-            print(template.format(epoch + 1, ACC.result(), NMI.result(), ARI.result()))
-
-            NMI.reset_states()
-            ARI.reset_states()
-
-        params = {}
-        for v in model.variables:
-            params[v.name] = v.numpy()
-        sio.savemat(args.train_dir + '/tuned_params.mat', params)
-'''
