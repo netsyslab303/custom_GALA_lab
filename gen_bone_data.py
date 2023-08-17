@@ -3,10 +3,11 @@ import os
 import pickle
 import argparse
 import train_ws_seperated_temporal
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--time_input", default=30, type=str)
-parser.add_argument("--frame_interval", default=100, type=int)
+parser.add_argument("--frame_interval", default=15, type=int)
 args = parser.parse_args()
 
 neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
@@ -19,7 +20,7 @@ pkl_file = home_path + '/ntu60_hrnet.pkl'
 with open(pkl_file, 'rb') as f:
     data = pickle.load(f)
 
-joint_data = []
+bone_data = []
 org_data = []
 time_input = args.time_input
 frame_interval = args.frame_interval
@@ -30,7 +31,7 @@ for data_len in range(len(data['annotations'])):
     if num_person == 1:
         key_points = train_ws_seperated_temporal.normalize_data(data['annotations'][data_len]['keypoint'][0])
         bone = copy.deepcopy(key_points)
-        bone[:, 0, :] = key_points[:, source, :] - key_points[:, 0, :]
+        bone[:, 0, :] = 0
         for i, j in neighbor_link:
             source = j
             target = i
@@ -38,8 +39,9 @@ for data_len in range(len(data['annotations'])):
         for num1 in range(0, len(bone), frame_interval):
             end = num1 + time_input
             if end <= len(bone):
-                joint_data.append(bone[num1:end])
+                bone = bone[num1:end]
+                score = data['annotations'][data_len]['keypoint_score'][0][num1:end].reshape(bone.shape[0],bone.shape[1],1)
+                bone_data.append(np.concatenate((bone, score), axis=2))
 
-        #data['annotations'][data_len]['keypoint'][0] = copy.deepcopy(bone)
-with open(home_path + '/normalized_input/Normalized_bone_{}_{}.pkl'.format(time_input,frame_interval), 'wb') as f:
-    pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
+with open(home_path + '/normalized_input/Normalized_bone_score_{}_{}.pkl'.format(time_input,frame_interval), 'wb') as f:
+    pickle.dump(bone_data, f, pickle.HIGHEST_PROTOCOL)

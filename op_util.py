@@ -13,6 +13,8 @@ from nets import SVD
 import train_ws_seperated_temporal
 import plot_output
 
+use_bone = train_ws_seperated_temporal.use_bone
+
 
 def norm_euclidean_distance(input, output, acc):
     dist = np.linalg.norm(input[acc] - output[acc])
@@ -70,7 +72,7 @@ def bone_to_joint(bone):
     # 코 (0,0)의 joint는 무조건 1,1로
     for k in range(joint.shape[1] // 17):
         joint[:, 0 + (k * 17), :] = 1
-    for joints in range(1,17):
+    for joints in range(1, 17):
         for i, j in neighbor_link:
             if i == joints:
                 source = j
@@ -84,46 +86,46 @@ def bone_to_joint(bone):
 def Optimizer(model_j, model_b, LR):
     with tf.name_scope('Optimizer_w_Distillation_j'):
         j_optimizer = tf.keras.optimizers.Adam(LR[0])
+        b_optimizer = tf.keras.optimizers.Adam(LR[0])
         optimizer_tune = tf.keras.optimizers.Adam(LR[1])
 
         train_loss_j = tf.keras.metrics.Mean(name='train_loss_j')
+        train_loss_b = tf.keras.metrics.Mean(name='train_loss_b')
         ACC = tf.keras.metrics.Mean(name='ACC')
         NMI = tf.keras.metrics.Mean(name='NMI')
         ARI = tf.keras.metrics.Mean(name='ARI')
-
-    with tf.name_scope('Optimizer_w_Distillation_b'):
-        b_optimizer = tf.keras.optimizers.Adam(LR[0])
-        train_loss_b = tf.keras.metrics.Mean(name='train_loss_b')
 
     l = 5e1
     mu = 1.
 
     @tf.function
-    def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k):
+    def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
-            generated_j = model_j(noised_joint, training=True)
-            generated_b = model_b(noised_bone, training=True)
-            new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
-            new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
-            generated_j = (generated_j + new_j) / 2
-            generated_b = (generated_b + new_b) / 2
+            generated_j = model_j(noised_joint, training=True, dyna=dyna_adj)
             loss_j = tf.reduce_sum(tf.square(input_j - generated_j)) / 2 / input_j.shape[0]
-            loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
             total_loss_j = loss_j
-            total_loss_b = loss_b
-            if weight_decay > 0.:
-                total_loss_j += tf.add_n(
-                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_j.trainable_variables])
+            total_loss_j += tf.add_n(
+                [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_j.trainable_variables])
+            if use_bone:
+                generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
+                loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
+                # new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
+                # new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
+                # generated_j = (generated_j + new_j) / 2
+                # generated_b = (generated_b + new_b) / 2
+                total_loss_b = loss_b
                 total_loss_b += tf.add_n(
                     [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_b.trainable_variables])
         # gradient 계
         gradients_j = tape1.gradient(total_loss_j, model_j.trainable_variables)
-        gradients_b = tape2.gradient(total_loss_b, model_b.trainable_variables)
         # 모델 업데이트
         j_optimizer.apply_gradients(zip(gradients_j, model_j.trainable_variables))
-        b_optimizer.apply_gradients(zip(gradients_b, model_b.trainable_variables))
         train_loss_j.update_state(loss_j)
-        train_loss_b.update_state(loss_b)
+
+        if use_bone:
+            gradients_b = tape2.gradient(total_loss_b, model_b.trainable_variables)
+            b_optimizer.apply_gradients(zip(gradients_b, model_b.trainable_variables))
+            train_loss_b.update_state(loss_b)
 
     @tf.function
     # def finetuning(input, weight_decay, k):

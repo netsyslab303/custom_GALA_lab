@@ -1,7 +1,10 @@
 import tensorflow as tf
+import numpy as np
 import torch
+import train_ws_seperated_temporal
 from tensorflow import keras
 
+use_dyna_adj = train_ws_seperated_temporal.use_dyna_adj
 
 class Model(tf.keras.Model):
     def __init__(self, s_DAD, t_DAD, name='GALA', batch_size=64, trainable=True, time_input=15, **kwargs):
@@ -29,31 +32,32 @@ class Model(tf.keras.Model):
         self.t_DADsm = tf.sparse.SparseTensor(t_DAD['DADsm_indices'], t_DAD['DADsm_values'][0], t_DAD['dense_shape'][0])
         self.t_DADsp = tf.sparse.SparseTensor(t_DAD['DADsp_indices'], t_DAD['DADsp_values'][0], t_DAD['dense_shape'][0])
 
-    def Laplacian_smoothing(self, x, name, training, DAD):
-        tmp = []
+    def Laplacian_smoothing(self, x, name, training, DAD, dyna):
         inputs = self.GALA[name](x, training=training)
-        for i in range(len(x)):
-            tmp.append(tf.nn.relu(
-                tf.sparse.sparse_dense_matmul(DAD, inputs[i])))
-        tmp = tf.convert_to_tensor(tmp)
-        return tmp
+        dad = tf.sparse.to_dense(DAD)
+        if use_dyna_adj:
+            dad = tf.math.multiply(dyna, dad)
+        output = tf.nn.relu(tf.matmul(dad,inputs))
+        return output
 
-    def Laplacian_sharpening(self, x, name, training, DAD):
-        tmp = []
-        for i in range(len(x)):
-            tmp.append(tf.nn.relu(tf.sparse.sparse_dense_matmul(DAD, self.GALA[name](x[i], training=training))))
-        return tmp
+    def Laplacian_sharpening(self, x, name, training, DAD, dyna):
+        inputs = self.GALA[name](x, training=training)
+        dad = tf.sparse.to_dense(DAD)
+        if use_dyna_adj:
+            dad = tf.math.multiply(dyna, dad)
+        output = tf.nn.relu(tf.matmul(dad, inputs))
+        return output
 
-    def call(self, H, training=None):
+    def call(self, H, training=None, dyna=None):
         for i in range(3):
             if i < 2:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm, dyna)
             else:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm, dyna)
         self.H = H
         for i in range(3):
             if i == 0:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp, dyna)
             else:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp, dyna)
         return H
