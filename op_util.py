@@ -14,6 +14,7 @@ import train_ws_seperated_temporal
 import plot_output
 
 use_bone = train_ws_seperated_temporal.use_bone
+use_polar = train_ws_seperated_temporal.use_polar
 
 
 def norm_euclidean_distance(input, output, acc):
@@ -60,6 +61,14 @@ def joint_to_bone(joint):
         target = i
         for k in range(joint.shape[1] // 17):
             bone[:, target + (k * 17), :] = joint[:, target + (k * 17), :] - joint[:, source + (k * 17), :]
+    if use_polar:
+        x = bone[:, :, 0]
+        y = bone[:, :, 1]
+        polar_dis = np.sqrt(x ** 2 + y ** 2)
+        polar_deg = np.arctan2(y, x)
+        polar_deg[polar_deg < 0] += 2 * np.pi
+        bone[:, :, 0] = polar_dis
+        bone[:, :, 1] = polar_deg/(2 * np.pi)
     return bone
 
 
@@ -68,6 +77,9 @@ def bone_to_joint(bone):
                      (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
                      (1, 0), (3, 1), (2, 0), (4, 2)]
     bone = np.array(bone)
+    if use_polar:
+        bone[:,:,0] = bone[:,:,0] * np.cos(bone[:,:,1]*(2 * np.pi))
+        bone[:,:,1] = bone[:,:,0] * np.sin(bone[:,:,1]*(2 * np.pi))
     joint = copy.deepcopy(bone)
     # 코 (0,0)의 joint는 무조건 1,1로
     for k in range(joint.shape[1] // 17):
@@ -102,20 +114,20 @@ def Optimizer(model_j, model_b, LR):
     def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
             generated_j = model_j(noised_joint, training=True, dyna=dyna_adj)
+            if use_bone:
+                generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
+                new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
+                new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
+                generated_j = (generated_j + new_j) / 2
+                generated_b = (generated_b + new_b) / 2  #이 두줄로 서로의 연관성 조
+                loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
+                total_loss_b = loss_b
+                total_loss_b += tf.add_n(
+                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_b.trainable_variables])
             loss_j = tf.reduce_sum(tf.square(input_j - generated_j)) / 2 / input_j.shape[0]
             total_loss_j = loss_j
             total_loss_j += tf.add_n(
                 [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_j.trainable_variables])
-            if use_bone:
-                generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
-                loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
-                # new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
-                # new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
-                # generated_j = (generated_j + new_j) / 2
-                # generated_b = (generated_b + new_b) / 2
-                total_loss_b = loss_b
-                total_loss_b += tf.add_n(
-                    [tf.reduce_sum(tf.square(v)) * weight_decay / 2 for v in model_b.trainable_variables])
         # gradient 계
         gradients_j = tape1.gradient(total_loss_j, model_j.trainable_variables)
         # 모델 업데이트
