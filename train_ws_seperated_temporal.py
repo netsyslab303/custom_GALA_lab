@@ -1,12 +1,35 @@
-import copy
-import math
+import os, time, argparse
+normalized_point = 1
+num_adj = 1
+batch = 256
+time_input = 30  # 입력으로 사용되는 frame 수
+frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
+num_noise = 10
 
-import keras.models
-import tensorflow as tf
+home_path = os.path.dirname(os.path.abspath(__file__))
+parser = argparse.ArgumentParser()
+parser.add_argument("--train_dir", default="test", type=str)
+parser.add_argument("--save_model_name",
+                    default="weights/64_128_256_input_2_bone_polar_{}_{}_{}".format( time_input, frame_interval, num_noise), type=str)
+parser.add_argument("--load_model", action='store_true')
+parser.add_argument("--test", action='store_false', help='for only_test')
+parser.add_argument("--vector_noise", action='store_true')
+parser.add_argument("--bone", action='store_true')
+parser.add_argument("--dyna_adj", action='store_true')
+parser.add_argument("--polar", action='store_true')
+parser.add_argument("--input_size", default=2, type=int)
+args = parser.parse_args()
+# 입력으로 사용되는 frame 중 noise 처리되는 frame 수
+use_bone = args.bone
+use_dyna_adj = args.dyna_adj
+use_polar = args.polar
+input_size = args.input_size
+
+import copy
 import numpy as np
 import scipy.io as sio
 import scipy.sparse as ss
-import os, time, argparse
+
 import pickle
 import random
 
@@ -17,31 +40,6 @@ from nets import GALA
 import tensorflow as tf
 import torch
 from tensorflow import keras
-
-normalized_point = 1
-num_adj = 1
-batch = 64
-time_input = 30  # 입력으로 사용되는 frame 수
-frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
-num_noise = 10
-
-home_path = os.path.dirname(os.path.abspath(__file__))
-parser = argparse.ArgumentParser()
-parser.add_argument("--train_dir", default="test", type=str)
-parser.add_argument("--save_model_name",
-                    default="weights/s_s_t_{}_adj{}_{}_{}_{}".format(normalized_point, num_adj, time_input,
-                                                                     frame_interval, num_noise), type=str)
-parser.add_argument("--load_model", action='store_true')
-parser.add_argument("--test", action='store_false', help='for only_test')
-parser.add_argument("--vector_noise", action='store_true')
-parser.add_argument("--bone", action='store_true')
-parser.add_argument("--dyna_adj", action='store_true')
-parser.add_argument("--polar", action='store_true')
-args = parser.parse_args()
-# 입력으로 사용되는 frame 중 noise 처리되는 frame 수
-use_bone = args.vector_noise
-use_dyna_adj = args.dyna_adj
-use_polar = args.polar
 
 neighbor_link = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
                  (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
@@ -185,6 +183,9 @@ def load_pkl():
 
         bone_pkl_file = home_path + '/normalized_input/Normalized_bone_score_{}_{}.pkl'.format(time_input,
                                                                                          frame_interval)
+        if use_polar:
+            bone_pkl_file = home_path + '/normalized_input/Normalized_polar_bone_score_{}_{}.pkl'.format(time_input,
+                                                                                                   frame_interval)
         with open(bone_pkl_file, 'rb') as f:
             bone_data = pickle.load(f)
 
@@ -293,26 +294,32 @@ if __name__ == '__main__':
                     feature_b = feature_b.reshape(-1, 17 * time_input, 3)
                     noised_j, noised_b, _, _ = make_noise(feature_j, feature_b)
                     dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0],noised_j.shape[1], 1), (1,1,510)).transpose(0,2,1)
-                    init_step(feature_j[:,:,0:2], feature_b[:,:,0:2], noised_j[:,:,0:2], noised_b[:,:,0:2], weight_decay, k, dyna_adj)
+                    # dyna_adj[dyna_adj>0] = 1
+                    noised_j[:, :, 2][noised_j[:, :, 2]>0] = 1
+                    if input_size == 2:
+                        init_step(feature_j[:,:,0:2], feature_b[:,:,0:2], noised_j[:,:,0:2], noised_b[:,:,0:2], weight_decay, k, dyna_adj)
+                    else:
+                        init_step(feature_j[:,:,0:2], feature_b[:,:,0:2], noised_j, noised_b, weight_decay, k, dyna_adj)
                 step += 1
                 model_j.save_weights('{}_J.h5'.format(args.save_model_name), overwrite=True, save_format=None,
                                      options=None)
-                # model_b.save_weights('{}_B.h5'.format(args.save_model_name), overwrite=True, save_format=None,
-                #                      options=None)
+                if use_bone:
+                    model_b.save_weights('{}_B.h5'.format(args.save_model_name), overwrite=True, save_format=None,
+                                         options=None)
 
                 if epoch % do_log == 0 or epoch == maximum_epoch - 1:
                     template = 'Global step {0:5d}: loss = {1:0.4f} ({2:1.3f} sec/step)'
                     print(template.format(step, init_loss_j.result(), (time.time() - train_time) / do_log))
-                    #print(template.format(step, init_loss_b.result(), (time.time() - train_time) / do_log))
-                    print()
                     train_time = time.time()
                     current_loss_j = init_loss_j.result()
-                    current_loss_b = init_loss_b.result()
                     tf.summary.scalar('Initialization/train', current_loss_j, step=epoch + 1)
-                    #tf.summary.scalar('Initialization/train', current_loss_b, step=epoch + 1)
                     init_loss_j.reset_states()
-                    #init_loss_b.reset_states()
-
+                    if use_bone:
+                        print(template.format(step, init_loss_b.result(), (time.time() - train_time) / do_log))
+                        current_loss_b = init_loss_b.result()
+                        tf.summary.scalar('Initialization/train', current_loss_b, step=epoch + 1)
+                        init_loss_b.reset_states()
+                    print()
         else:
             # for num in range(len(test) // batch):
             #     tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
