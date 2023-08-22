@@ -1,7 +1,8 @@
 import os, time, argparse
+
 normalized_point = 1
 num_adj = 1
-batch = 256
+batch = 64
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
 num_noise = 10
@@ -10,7 +11,8 @@ home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/64_128_256_input_2_bone_polar_{}_{}_{}".format( time_input, frame_interval, num_noise), type=str)
+                    default="weights/64_128_256_input_2_bone_polar_average_{}_{}_{}".format(time_input, frame_interval,
+                                                                                    num_noise), type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
 parser.add_argument("--vector_noise", action='store_true')
@@ -74,7 +76,11 @@ def make_noise(j_feature, b_feature):
                     two_hop = j
                     break
             two_hop_point = [rnd_frame[i] * 17 + two_hop for i in range(len(rnd_frame))]
-            noised_j_out[batch_idx][noised_point, 0:2] = noised_j_out[batch_idx][neighbor_point, 0:2] + noised_j_out[batch_idx][neighbor_point, 0:2] - noised_j_out[batch_idx][two_hop_point, 0:2]
+            noised_j_out[batch_idx][noised_point, 0:2] = noised_j_out[batch_idx][neighbor_point, 0:2] + noised_j_out[
+                                                                                                            batch_idx][
+                                                                                                        neighbor_point,
+                                                                                                        0:2] - \
+                                                         noised_j_out[batch_idx][two_hop_point, 0:2]
             print()
 
         for i, j in neighbor_link:
@@ -83,14 +89,14 @@ def make_noise(j_feature, b_feature):
                 noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
                 neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
                 noised_b_out[batch_idx][neighbor_point, 0:2] = (noised_j_out[batch_idx][neighbor_point, 0:2] -
-                                                              noised_j_out[batch_idx][noised_point, 0:2])
+                                                                noised_j_out[batch_idx][noised_point, 0:2])
                 noised_b_out[batch_idx][neighbor_point, 2] = 0
             elif i == rnd_joint:
                 neighbor_joint = j
                 noised_point = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
                 neighbor_point = [rnd_frame[i] * 17 + neighbor_joint for i in range(len(rnd_frame))]
                 noised_b_out[batch_idx][noised_point, 0:2] = (noised_j_out[batch_idx][noised_point, 0:2] -
-                                                            noised_j_out[batch_idx][neighbor_point, 0:2])
+                                                              noised_j_out[batch_idx][neighbor_point, 0:2])
                 noised_b_out[batch_idx][noised_point, 2] = 0
     return noised_j_out.astype(np.float32), noised_b_out.astype(np.float32), n_frame, n_joint
 
@@ -173,24 +179,25 @@ def denormalize_data(joint_data, org):
 
 
 def load_pkl():
-    if os.path.isfile(home_path + '/normalized_input/Normalized_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
-                                                                                          frame_interval)):
+    if os.path.isfile(
+            home_path + '/normalized_input/Normalized_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                      frame_interval)):
         joint_pkl_file = home_path + '/normalized_input/Normalized_data_score_{}_{}_{}.pkl'.format(normalized_point,
-                                                                                             time_input,
-                                                                                             frame_interval)
+                                                                                                   time_input,
+                                                                                                   frame_interval)
         with open(joint_pkl_file, 'rb') as f:
             joint_data = pickle.load(f)
 
         bone_pkl_file = home_path + '/normalized_input/Normalized_bone_score_{}_{}.pkl'.format(time_input,
-                                                                                         frame_interval)
+                                                                                               frame_interval)
         if use_polar:
             bone_pkl_file = home_path + '/normalized_input/Normalized_polar_bone_score_{}_{}.pkl'.format(time_input,
-                                                                                                   frame_interval)
+                                                                                                         frame_interval)
         with open(bone_pkl_file, 'rb') as f:
             bone_data = pickle.load(f)
 
         org_pkl_file = home_path + '/normalized_input/Org_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
-                                                                                    frame_interval)
+                                                                                          frame_interval)
         with open(org_pkl_file, 'rb') as f:
             org_data = pickle.load(f)
 
@@ -216,12 +223,13 @@ def load_pkl():
                         joint_data.append(np.concatenate((joint, score), axis=2))
                         org_data.append(data[num]['keypoint'][0][num1:end])
 
-        with open(home_path + '/normalized_input/Normalized_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
-                                                                                      frame_interval), 'wb') as f:
+        with open(
+                home_path + '/normalized_input/Normalized_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
+                                                                                          frame_interval), 'wb') as f:
             pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
 
         with open(home_path + '/normalized_input/Org_data_score_{}_{}_{}.pkl'.format(normalized_point, time_input,
-                                                                               frame_interval), 'wb') as f:
+                                                                                     frame_interval), 'wb') as f:
             pickle.dump(org_data, f, pickle.HIGHEST_PROTOCOL)
 
     train_joint = copy.deepcopy(joint_data[0:-batch * 20])
@@ -262,9 +270,9 @@ if __name__ == '__main__':
     if args.load_model:
         model_j.built = True
         model_b.built = True
-        model_j.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
+        model_j.load_weights('weights/64_128_256_input_3_bone_polar_30_15_10_J.h5', skip_mismatch=False, by_name=False,
                              options=None)
-        model_b.load_weights('weights/t_s_1_adj1_30_15_10.h5', skip_mismatch=False, by_name=False,
+        model_b.load_weights('weights/64_128_256_input_3_bone_polar_30_15_10_B.h5', skip_mismatch=False, by_name=False,
                              options=None)
     init_step, init_loss_j, init_loss_b, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model_j, model_b,
                                                                                                [train_lr, finetune_lr])
@@ -293,13 +301,16 @@ if __name__ == '__main__':
                     feature_b = np.array(features_b[num * batch:(num + 1) * batch]).astype(np.float32)
                     feature_b = feature_b.reshape(-1, 17 * time_input, 3)
                     noised_j, noised_b, _, _ = make_noise(feature_j, feature_b)
-                    dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0],noised_j.shape[1], 1), (1,1,510)).transpose(0,2,1)
+                    dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0], noised_j.shape[1], 1),
+                                       (1, 1, 510)).transpose(0, 2, 1)
                     # dyna_adj[dyna_adj>0] = 1
-                    noised_j[:, :, 2][noised_j[:, :, 2]>0] = 1
+                    noised_j[:, :, 2][noised_j[:, :, 2] > 0] = 1
                     if input_size == 2:
-                        init_step(feature_j[:,:,0:2], feature_b[:,:,0:2], noised_j[:,:,0:2], noised_b[:,:,0:2], weight_decay, k, dyna_adj)
+                        init_step(feature_j[:, :, 0:2], feature_b[:, :, 0:2], noised_j[:, :, 0:2], noised_b[:, :, 0:2],
+                                  weight_decay, k, dyna_adj)
                     else:
-                        init_step(feature_j[:,:,0:2], feature_b[:,:,0:2], noised_j, noised_b, weight_decay, k, dyna_adj)
+                        init_step(feature_j[:, :, 0:2], feature_b[:, :, 0:2], noised_j, noised_b, weight_decay, k,
+                                  dyna_adj)
                 step += 1
                 model_j.save_weights('{}_J.h5'.format(args.save_model_name), overwrite=True, save_format=None,
                                      options=None)
@@ -321,10 +332,15 @@ if __name__ == '__main__':
                         init_loss_b.reset_states()
                     print()
         else:
-            # for num in range(len(test) // batch):
-            #     tests = np.array(test[num * batch:(num + 1) * batch]).astype(np.float32)
-            #     tests = tests.reshape(-1, 17 * time_input, 2)
-            #     org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
-            #     org_tests = org_tests.reshape(-1, 17 * time_input, 2)
-            #     validate(tests, org_tests, num)
-            make_pkl(spt='xsub_val')
+            for num in range(len(test_j) // batch):
+                tests_j = np.array(test_j[num * batch:(num + 1) * batch]).astype(np.float32)
+                tests_j = tests_j.reshape(-1, 17 * time_input, 3)
+                tests_b = np.array(test_b[num * batch:(num + 1) * batch]).astype(np.float32)
+                tests_b = tests_b.reshape(-1, 17 * time_input, 3)
+                org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
+                org_tests = org_tests.reshape(-1, 17 * time_input, 2)
+                if input_size == 2:
+                    validate(tests_j[:, :, 0:2], tests_b[:, :, 0:2], org_tests, num)
+                else:
+                    validate(tests_j[:, :, 0:3], tests_b[:, :, 0:3], org_tests, num)
+            # make_pkl(spt='xsub_val')
