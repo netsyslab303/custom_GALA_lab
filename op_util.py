@@ -56,6 +56,8 @@ def joint_to_bone(joint):
                      (1, 0), (3, 1), (2, 0), (4, 2)]
     joint = np.array(joint)
     bone = copy.deepcopy(joint)
+    for k in range(joint.shape[1] // 17):
+        bone[:, (k * 17), :] = 0
     for i, j in neighbor_link:
         source = j
         target = i
@@ -77,9 +79,10 @@ def bone_to_joint(bone):
                      (9, 7), (7, 5), (10, 8), (8, 6), (5, 3), (6, 4),
                      (1, 0), (3, 1), (2, 0), (4, 2)]
     bone = np.array(bone)
+    tmp_bone = copy.deepcopy(bone)
     if use_polar:
-        bone[:,:,0] = bone[:,:,0] * np.cos(bone[:,:,1]*(2 * np.pi))
-        bone[:,:,1] = bone[:,:,0] * np.sin(bone[:,:,1]*(2 * np.pi))
+        bone[:,:,0] = tmp_bone[:,:,0] * np.cos(tmp_bone[:,:,1]*(2 * np.pi))
+        bone[:,:,1] = tmp_bone[:,:,0] * np.sin(tmp_bone[:,:,1]*(2 * np.pi))
     joint = copy.deepcopy(bone)
     # 코 (0,0)의 joint는 무조건 1,1로
     for k in range(joint.shape[1] // 17):
@@ -90,7 +93,7 @@ def bone_to_joint(bone):
                 source = j
                 target = i
                 for k in range(joint.shape[1] // 17):
-                    joint[:, target + (k * 17), :] = bone[:, source + (k * 17), :] + bone[:, target + (k * 17), :]
+                    joint[:, target + (k * 17), :] = joint[:, source + (k * 17), :] + bone[:, target + (k * 17), :]
                 break
     return joint
 
@@ -114,6 +117,8 @@ def Optimizer(model_j, model_b, LR):
     def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
             generated_j = model_j(noised_joint, training=True, dyna=dyna_adj)
+            j_to_b = joint_to_bone(input_j[:,:,0:2])
+            b_to_j = bone_to_joint(input_b[:, :, 0:2])
             if use_bone:
                 generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
                 new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
@@ -139,7 +144,7 @@ def Optimizer(model_j, model_b, LR):
             b_optimizer.apply_gradients(zip(gradients_b, model_b.trainable_variables))
             train_loss_b.update_state(loss_b)
 
-    @tf.function
+    # @tf.function
     # def finetuning(input, weight_decay, k):
     #     with tf.GradientTape() as tape:
     #         generated = model(input, training=True)
@@ -159,29 +164,20 @@ def Optimizer(model_j, model_b, LR):
     #     optimizer_tune.apply_gradients(zip(gradients, model.trainable_variables))
     #    train_loss.update_state(loss)
 
-    def validate2(input, org, batch):
-        noised, noised_frame, noised_joint = train_ws_seperated_temporal.make_noise(input)
-        H = model_j(noised, training=False)  ## 수정필요
-        output = np.array(H)
-        output = train_ws_seperated_temporal.denormalize_data(output, org)
-        plot_output.save_as_image(org, output, batch, noised_frame, noised_joint)
-        # norm_dist = 0
-        # dist = 0
-        # for i in range(50):
-        #     print("------------------")
-        #     print(acc_rnd[i])
-        #     print("Original")
-        #     print(input[i])
-        #     print("Noising")
-        #     print(noised[i])
-        #     print("Denoising")
-        #     print(H[i].numpy())
-        #     output = H[i].numpy()
-        #     norm_dist += norm_euclidean_distance(input[i], output, acc_rnd[i])
-        #     dist += euclidean_distance(input[i], output, acc_rnd[i])
-        # print(norm_dist / 100)
-        # print(dist / 100)
-        # print(len(input))
+    def validate2(input_j, input_b, org_j, batch):
+        noised_j, noised_b, noised_frame, noised_joint = train_ws_seperated_temporal.make_noise(input_j, input_b)
+        dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0], noised_j.shape[1], 1), (1, 1, 510)).transpose(0,
+                                                                                                                      2,
+                                                                                                                      1)
+        generated_j = model_j(noised_j, training=False, dyna=dyna_adj)  ## 수정필요
+        output = np.array(generated_j)
+        output = train_ws_seperated_temporal.denormalize_data(output, org_j)
+        plot_output.save_as_image(org_j, output, batch, noised_frame, noised_joint)
+        if use_bone:
+            generated_b = model_b(noised_b, training=False, dyna=dyna_adj)  ## 수정필요
+            output = bone_to_joint(generated_b)
+            output = train_ws_seperated_temporal.denormalize_data(output, org_j)
+            plot_output.bone_save_as_image(output, batch, noised_frame, noised_joint)
 
     def make_pkl(spt):
         home_path = os.path.dirname(os.path.abspath(__file__))
@@ -218,8 +214,7 @@ def Optimizer(model_j, model_b, LR):
                 org = copy.deepcopy(inputs)
                 inputs = train_ws_seperated_temporal.normalize_data(inputs)
                 H = train_ws_seperated_temporal.denormalize_data(np.array(model_j(inputs, training=False)),
-                                                                 org).reshape(
-                    -1, 17, 2)  ## 수정필요
+                                                                 org).reshape(-1, 17, 2)  ## 수정필요
                 output_1 = H[0:cut * time]
                 output_2 = H[-res:]
                 if res == 0:
