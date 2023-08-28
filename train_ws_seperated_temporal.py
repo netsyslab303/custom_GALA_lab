@@ -7,11 +7,13 @@ time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
 num_noise = 10
 
+load_model_j_name = 'weights/64_128_256_input_3_bone_polar_seperated_30_15_10_J.h5'
+load_model_b_name = 'weights/64_128_256_input_3_bone_polar_only_using_seperated_30_15_10_B.h5'
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/64_128_256_input_2_bone_polar_average_{}_{}_{}".format(time_input, frame_interval,
+                    default="weights/64_128_256_input_3_bone_polar_seperated_{}_{}_{}".format(time_input, frame_interval,
                                                                                     num_noise), type=str)
 parser.add_argument("--load_model", action='store_true')
 parser.add_argument("--test", action='store_false', help='for only_test')
@@ -56,7 +58,7 @@ def make_noise(j_feature, b_feature):
     for batch_idx in range(len(j_feature)):
         # 동일 time_input 안 에서는 동일한 관절만 0으로 noising
         rnd_frame = random.sample(range(0, time_input), num_noise)
-        rnd_joint = random.randint(1, 16)
+        rnd_joint = random.randint(5, 16)
         n_frame.append(rnd_frame)
         n_joint.append(rnd_joint)
         # zero = [rnd_frame[i] * 17 + rnd_joint for i in range(len(rnd_frame))]
@@ -142,6 +144,9 @@ def get_affinity_skeleton(A, domain):
     Asm = A + eye
     Dsm = 1 / np.sqrt(np.sum(Asm, -1))
     DADsm = ss.csr_matrix(np.multiply(np.multiply(Asm, Dsm).T, Dsm).reshape(-1))
+    # **np.multiply : element-wise 곱, 굳이 transpose 이유..
+    # 모르겠다. element-wise여서 어차피 A*D*A, (A*D).T*D, DAD, ADD 다 똑같은텐데...
+
 
     Asp = 2 * eye - A
     Dsp = 1 / np.sqrt(np.sum(2 * eye + A, -1))
@@ -167,14 +172,13 @@ def normalize_data(joint_data):
 def denormalize_data(joint_data, org):
     joint_data = joint_data.reshape(-1, time_input, 17, 2)
     org = org.reshape(-1, time_input, 17, 2)
-    center_x = np.array(org[:, :, 0])
-    center_y = np.array(org[:, :, 1])
+    center = np.array(org[:, :, 0])
     for batch_idx in range(len(joint_data)):
         for frame_idx in range(time_input):
             joint_data[batch_idx, frame_idx, :, 0] = (joint_data[batch_idx, frame_idx, :, 0] + (1 - normalized_point)) * \
-                                                     center_x[batch_idx, frame_idx, 0]
+                                                     center[batch_idx, frame_idx, 0]
             joint_data[batch_idx, frame_idx, :, 1] = (joint_data[batch_idx, frame_idx, :, 1] + (1 - normalized_point)) * \
-                                                     center_y[batch_idx, frame_idx, 1]
+                                                     center[batch_idx, frame_idx, 1]
     return joint_data
 
 
@@ -270,9 +274,9 @@ if __name__ == '__main__':
     if args.load_model:
         model_j.built = True
         model_b.built = True
-        model_j.load_weights('weights/64_128_256_input_3_bone_polar_30_15_10_J.h5', skip_mismatch=False, by_name=False,
+        model_j.load_weights(load_model_j_name, skip_mismatch=False, by_name=False,
                              options=None)
-        model_b.load_weights('weights/64_128_256_input_3_bone_polar_30_15_10_B.h5', skip_mismatch=False, by_name=False,
+        model_b.load_weights(load_model_b_name, skip_mismatch=False, by_name=False,
                              options=None)
     init_step, init_loss_j, init_loss_b, validate, make_pkl, ACC, NMI, ARI = op_util.Optimizer(model_j, model_b,
                                                                                                [train_lr, finetune_lr])
@@ -332,15 +336,18 @@ if __name__ == '__main__':
                         init_loss_b.reset_states()
                     print()
         else:
-            for num in range(len(test_j) // batch):
-                tests_j = np.array(test_j[num * batch:(num + 1) * batch]).astype(np.float32)
-                tests_j = tests_j.reshape(-1, 17 * time_input, 3)
-                tests_b = np.array(test_b[num * batch:(num + 1) * batch]).astype(np.float32)
-                tests_b = tests_b.reshape(-1, 17 * time_input, 3)
-                org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
-                org_tests = org_tests.reshape(-1, 17 * time_input, 2)
-                if input_size == 2:
-                    validate(tests_j[:, :, 0:2], tests_b[:, :, 0:2], org_tests, num)
-                else:
-                    validate(tests_j[:, :, 0:3], tests_b[:, :, 0:3], org_tests, num)
-            # make_pkl(spt='xsub_val')
+            # for num in range(len(test_j) // batch):
+            #     tests_j = np.array(test_j[num * batch:(num + 1) * batch]).astype(np.float32)
+            #     tests_j = tests_j.reshape(-1, 17 * time_input, 3)
+            #     tests_b = np.array(test_b[num * batch:(num + 1) * batch]).astype(np.float32)
+            #     tests_b = tests_b.reshape(-1, 17 * time_input, 3)
+            #     org_tests = np.array(org_test[num * batch:(num + 1) * batch]).astype(np.float32)
+            #     org_tests = org_tests.reshape(-1, 17 * time_input, 2)
+            #     noised_j, noised_b, noised_frame, noised_joint = make_noise(tests_j, tests_b)
+            #     dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0], noised_j.shape[1], 1),
+            #                        (1, 1, 510)).transpose(0, 2, 1)
+            #     if input_size == 2:
+            #         validate(noised_j[:, :, 0:2], noised_b[:, :, 0:2], noised_frame, noised_joint, org_tests, num, dyna_adj)
+            #     else:
+            #         validate(noised_j[:, :, 0:3], noised_b[:, :, 0:3], noised_frame, noised_joint, org_tests, num, dyna_adj)
+            make_pkl(spt='xsub_val')

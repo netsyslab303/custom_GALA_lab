@@ -15,6 +15,7 @@ import plot_output
 
 use_bone = train_ws_seperated_temporal.use_bone
 use_polar = train_ws_seperated_temporal.use_polar
+input_size = train_ws_seperated_temporal.input_size
 
 
 def norm_euclidean_distance(input, output, acc):
@@ -117,14 +118,12 @@ def Optimizer(model_j, model_b, LR):
     def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
             generated_j = model_j(noised_joint, training=True, dyna=dyna_adj)
-            j_to_b = joint_to_bone(input_j[:,:,0:2])
-            b_to_j = bone_to_joint(input_b[:, :, 0:2])
             if use_bone:
                 generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
-                new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
-                new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
-                generated_j = (generated_j + new_j) / 2
-                generated_b = (generated_b + new_b) / 2  #이 두줄로 서로의 연관성 조
+                # new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
+                # new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
+                # generated_j = (generated_j + new_j) / 2
+                # generated_b = (generated_b + new_b) / 2  #이 두줄로 서로의 연관성 조
                 loss_b = tf.reduce_sum(tf.square(input_b - generated_b)) / 2 / input_b.shape[0]
                 total_loss_b = loss_b
                 total_loss_b += tf.add_n(
@@ -164,11 +163,7 @@ def Optimizer(model_j, model_b, LR):
     #     optimizer_tune.apply_gradients(zip(gradients, model.trainable_variables))
     #    train_loss.update_state(loss)
 
-    def validate2(input_j, input_b, org_j, batch):
-        noised_j, noised_b, noised_frame, noised_joint = train_ws_seperated_temporal.make_noise(input_j, input_b)
-        dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0], noised_j.shape[1], 1), (1, 1, 510)).transpose(0,
-                                                                                                                      2,
-                                                                                                                      1)
+    def validate2(noised_j, noised_b, noised_frame, noised_joint, org_j, batch, dyna_adj):
         generated_j = model_j(noised_j, training=False, dyna=dyna_adj)  ## 수정필요
         output = np.array(generated_j)
         output = train_ws_seperated_temporal.denormalize_data(output, org_j)
@@ -181,53 +176,119 @@ def Optimizer(model_j, model_b, LR):
 
     def make_pkl(spt):
         home_path = os.path.dirname(os.path.abspath(__file__))
-        pkl_file = home_path + '/Noising_keypoint_0.3_xsub_val.pkl'
+        joint_pkl_file = home_path + '/Noising_keypoint_0.3_xsub_val.pkl'
+        bone_pkl_file = home_path + '/Noising_bone_polar_0.3_xsub_val.pkl'
         noising_frame_num = home_path + '/noising_frame_num_0.3_xsub_val.pkl'
         noising_joint_num = home_path + '/noising_joint_num_0.3_xsub_val.pkl'
-        with open(pkl_file, 'rb') as f:
-            data = pickle.load(f)
+        with open(joint_pkl_file, 'rb') as f:
+            joint_data = pickle.load(f)
+        with open(bone_pkl_file, 'rb') as f:
+            bone_data = pickle.load(f)
         with open(noising_frame_num, 'rb') as f:
             noising_frames = pickle.load(f)
         with open(noising_joint_num, 'rb') as f:
             noising_joints = pickle.load(f)
         if spt:
-            split, data_annot = data['split'], data['annotations']
-            identifier = 'filename' if 'filen+ame' in data_annot[0] else 'frame_dir'
-            split = set(split[spt])
-            annot = [x for x in data_annot if x[identifier] in split]
+            split_j, data_annot_j = joint_data['split'], joint_data['annotations']
+            split_b, data_annot_b = bone_data['split'], bone_data['annotations']
+            identifier = 'filename' if 'filen+ame' in data_annot_j[0] else 'frame_dir'
+            split = set(split_j[spt])
+            annot_j = [x for x in data_annot_j if x[identifier] in split]
+            annot_b = [x for x in data_annot_b if x[identifier] in split]
         else:
-            annot = data['annotations']
-        for num in range(len(annot)):  # len(annot)
-            if len(annot[num]['keypoint']) == 1:
+            annot_j = joint_data['annotations']
+            annot_b = bone_data['annotations']
+        for num in range(len(annot_j)):  # len(annot)
+            if len(annot_j[num]['keypoint']) == 1:
                 # for num_person in range(len(annot[num]['keypoint'])):
                 # pkl 행동들의 frame수가 time_input으로 딱 나눠지지 않기 때문에 마지막 배열의 크기를 맞춰준다.
                 num_person = 0
                 rnd_frame = noising_frames[num][num_person]
                 rnd_joint = noising_joints[num][num_person]
-                inputs = annot[num]['keypoint'][num_person]
+                # output_j = make_joint_or_bone_pkl(annot_j, annot_j, num, num_person, model_j, 'joint')
+                # if len(data_annot_j[num]['keypoint'][num_person]) == len(output_j):
+                #     # joint_data['annotations'][num]['keypoint'][num_person] = output_j
+                #     joint_data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output_j[rnd_frame, rnd_joint, :]
+
+                if use_bone:
+                    output_b = make_joint_or_bone_pkl(annot_b, annot_j, num, num_person, model_b, 'bone')
+                    if len(data_annot_b[num]['keypoint'][num_person]) == len(output_b):
+                        bone_data['annotations'][num]['keypoint'][num_person] = output_b
+                        # joint_data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output_b[
+                        #                                                                                   rnd_frame,
+                        #                                                                                   rnd_joint, :]
+                '''
+                inputs_j = annot_j[num]['keypoint'][num_person]
+                score = annot_j[num]['keypoint_score'][num_person].reshape(inputs_j.shape[0], inputs_j.shape[1], 1)
+                score[:, :, :] = 1
+                score[np.array(rnd_frame), rnd_joint, :] = 0
+                inputs_j = np.concatenate((inputs_j, score), axis=2)
                 time = train_ws_seperated_temporal.time_input
-                cut = len(inputs) // time
-                res = len(inputs) % time
-                input_1 = inputs[0:cut * time].reshape(-1, 17 * time, 2)
-                input_2 = inputs[-time:].reshape(-1, 17 * time, 2)
-                inputs = np.append(input_1, input_2, axis=0)
-                org = copy.deepcopy(inputs)
-                inputs = train_ws_seperated_temporal.normalize_data(inputs)
-                H = train_ws_seperated_temporal.denormalize_data(np.array(model_j(inputs, training=False)),
-                                                                 org).reshape(-1, 17, 2)  ## 수정필요
-                output_1 = H[0:cut * time]
-                output_2 = H[-res:]
+                cut = len(inputs_j) // time
+                res = len(inputs_j) % time
+                input_1_j = inputs_j[0:cut * time].reshape(-1, 17 * time, 3)
+                input_2_j = inputs_j[-time:].reshape(-1, 17 * time, 3)
+                input_j = np.append(input_1_j, input_2_j, axis=0)
+                org = copy.deepcopy(input_j[:,:,0:2])
+                input_j = train_ws_seperated_temporal.normalize_data(input_j)
+                if input_size == 3:
+                    out_joint = train_ws_seperated_temporal.denormalize_data(np.array(model_j(input_j, training=False)),
+                                                                     org).reshape(-1, 17, 2)  ## 수정필요
+                else:
+                    out_joint = train_ws_seperated_temporal.denormalize_data(np.array(model_j(input_j[:,:,0:2], training=False)),
+                                                                     org).reshape(-1, 17, 2)  ## 수정필요
+
+                output_1 = out_joint[0:cut * time]
+                output_2 = out_joint[-res:]
                 if res == 0:
                     output = output_1
                 else:
                     output = np.append(output_1, output_2, axis=0)
-                if len(data_annot[num]['keypoint'][num_person]) == len(output):
-                    # data['annotations'][num]['keypoint'][num_person] = output
-                    data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output[rnd_frame,
-                                                                                                rnd_joint, :]
+                '''
 
-        with open('Denoising_point.pkl', 'wb') as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+        # with open('Denoising_point_j.pkl', 'wb') as f:
+        #     pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
+
+        with open('Denoising_b_polar_only.pkl', 'wb') as f:
+            pickle.dump(bone_data, f, pickle.HIGHEST_PROTOCOL)
+
+    def make_joint_or_bone_pkl(inp, inp_j, num, num_person, model, inp_str):
+        inputs = inp[num]['keypoint'][num_person]
+        inputs_org = inp_j[num]['keypoint'][num_person]
+        score = inp[num]['keypoint_score'][num_person].reshape(inputs.shape[0], inputs.shape[1], 1)
+        inputs = np.concatenate((inputs, score), axis=2)
+
+        time = train_ws_seperated_temporal.time_input
+        cut = len(inputs) // time
+        res = len(inputs) % time
+        input_1 = inputs[0:cut * time].reshape(-1, 17 * time, 3)
+        input_2 = inputs[-time:].reshape(-1, 17 * time, 3)
+        org_inp_1 = inputs_org[0:cut * time].reshape(-1, 17 * time, 2)
+        org_inp_2 = inputs_org[-time:].reshape(-1, 17 * time, 2)
+        input = np.append(input_1, input_2, axis=0)
+        org = np.append(org_inp_1, org_inp_2, axis=0)
+        # input = train_ws_seperated_temporal.normalize_data(input) # Bone 일 때 확인필요
+
+        if input_size == 3:
+            model_out = model(input, training=False)
+        else:
+            model_out = model(input[:, :, 0:2], training=False)
+
+        if inp_str == 'bone':
+
+            model_out = bone_to_joint(model_out)
+
+        out_joint = train_ws_seperated_temporal.denormalize_data(np.array(model_out),org).reshape(-1, 17, 2)
+        output_1 = out_joint[0:cut * time]
+        output_2 = out_joint[-res:]
+        if res == 0:
+            output = output_1
+        else:
+            output = np.append(output_1, output_2, axis=0)
+
+        return output
+
 
     return training, train_loss_j, train_loss_b, validate2, make_pkl, ACC, NMI, ARI
 
