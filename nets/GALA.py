@@ -32,9 +32,11 @@ class Model(tf.keras.Model):
                 else:
                     self.GALA['dec%d' % i](keras.Input(shape=(17 * time_input, D[-i],)))
 
-        # org_score = keras.Input(shape=(17 * time_input, 17 * 1,), name="digits")
-        # self.GALA['dyna_adj'] = tf.keras.layers.Dense(17 * time_input, trainable=trainable)
-        # self.GALA['dyna_adj'](org_score)
+        org_score = keras.Input(shape=(17 * time_input, 1,), name="digits")
+        self.GALA['dyna_s_adj'] = tf.keras.layers.Dense(1, trainable=trainable)
+        self.GALA['dyna_s_adj'](org_score)
+        self.GALA['dyna_t_adj'] = tf.keras.layers.Dense(1, trainable=trainable)
+        self.GALA['dyna_t_adj'](org_score)
 
         self.s_DADsm = tf.sparse.SparseTensor(s_DAD['DADsm_indices'], s_DAD['DADsm_values'][0], s_DAD['dense_shape'][0])
         self.s_DADsp = tf.sparse.SparseTensor(s_DAD['DADsp_indices'], s_DAD['DADsp_values'][0], s_DAD['dense_shape'][0])
@@ -78,15 +80,20 @@ class Model(tf.keras.Model):
         return output
 
     def call(self, H, training=None, dyna=None, dyna_zero=None):
+        tmp = tf.ones([dyna.shape[0], dyna.shape[1], 1])
+        s_dyna = np.array(self.GALA['dyna_s_adj'](tmp, training=training))
+        t_dyna = np.array(self.GALA['dyna_t_adj'](tmp, training=training))
+        s_dyna = tf.multiply(s_dyna, 1 - dyna_zero) + dyna_zero
+        t_dyna = tf.multiply(t_dyna, 1 - dyna_zero) + dyna_zero
         for i in range(self.model_len):
             if i % 2 == 0:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm, dyna, dyna_zero)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm, s_dyna, dyna_zero)
             else:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm, dyna, dyna_zero)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm, t_dyna, dyna_zero)
         self.H = H
         for i in range(self.model_len):
             if i % 2 == 0:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp, dyna, dyna_zero)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp, t_dyna, dyna_zero)
             else:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp, dyna, dyna_zero)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp, s_dyna, dyna_zero)
         return H

@@ -115,7 +115,7 @@ def Optimizer(model_j, model_b, LR):
     l = 5e1
     mu = 1.
 
-    @tf.function
+    #@tf.function
     def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj, dyna_zero):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
             generated_j = model_j(noised_joint, training=True, dyna=dyna_adj, dyna_zero=dyna_zero)
