@@ -9,14 +9,14 @@ num_noise = 10
 
 load_model_j_name = 'weights/Normalized_dyna_weight_joint.h5'
 load_model_b_name = 'weights/Normalized_dyna_weight_joint.h5'
-save_model_name = "weights/64_128_256_input_3_bone_polar_seperated_{}_{}_{}".format(time_input, frame_interval,num_noise)
+save_model_name = "weights/test{}_{}_{}".format(time_input, frame_interval,num_noise)
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
                     default=save_model_name, type=str)
 parser.add_argument("--load_model", action='store_true')
-parser.add_argument("--dyna_ratio", default=0.2, type=int)
+parser.add_argument("--dyna_ratio", default=2, type=int)
 parser.add_argument("--test", action='store_false', help='for only_test')
 parser.add_argument("--vector_noise", action='store_true')
 parser.add_argument("--bone", action='store_true')
@@ -29,7 +29,7 @@ use_bone = args.bone
 use_dyna_adj = args.dyna_adj
 use_polar = args.polar
 input_size = args.input_size
-dyna_ratio = args.dyna_ratio
+dyna_ratio = args.dyna_ratio/10
 
 import copy
 import numpy as np
