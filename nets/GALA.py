@@ -32,37 +32,61 @@ class Model(tf.keras.Model):
                 else:
                     self.GALA['dec%d' % i](keras.Input(shape=(17 * time_input, D[-i],)))
 
+        # org_score = keras.Input(shape=(17 * time_input, 17 * 1,), name="digits")
+        # self.GALA['dyna_adj'] = tf.keras.layers.Dense(17 * time_input, trainable=trainable)
+        # self.GALA['dyna_adj'](org_score)
+
         self.s_DADsm = tf.sparse.SparseTensor(s_DAD['DADsm_indices'], s_DAD['DADsm_values'][0], s_DAD['dense_shape'][0])
         self.s_DADsp = tf.sparse.SparseTensor(s_DAD['DADsp_indices'], s_DAD['DADsp_values'][0], s_DAD['dense_shape'][0])
         self.t_DADsm = tf.sparse.SparseTensor(t_DAD['DADsm_indices'], t_DAD['DADsm_values'][0], t_DAD['dense_shape'][0])
         self.t_DADsp = tf.sparse.SparseTensor(t_DAD['DADsp_indices'], t_DAD['DADsp_values'][0], t_DAD['dense_shape'][0])
 
-    def Laplacian_smoothing(self, x, name, training, DAD, dyna):
+    def Laplacian_smoothing(self, x, name, training, DAD, dyna, dyna_zero):
         inputs = self.GALA[name](x, training=training)
         dad = tf.sparse.to_dense(DAD)
         if use_dyna_adj:
-            dad = tf.math.multiply(dyna, dad)
+            dyna_inverse = 1-dyna_zero
+            dyna_inverse = tf.multiply(dyna, dyna_inverse)
+            dyna = tf.math.multiply(dyna, dad)
+            dyna_zero = tf.math.multiply(dyna_zero, dad)
+            dyna_inverse = tf.math.multiply(dyna_inverse, dad)
+            sum_dad = tf.reduce_sum(dad, 1, keepdims=True)
+            sum_dyna = tf.reduce_sum(dyna, 2, keepdims=True)
+            ratio = sum_dad/sum_dyna
+            dad_others = tf.math.multiply(dyna_zero, ratio) #
+            dad_noised = tf.math.multiply(dyna_inverse, ratio)
+            dad = dad_noised + dad_others
         output = tf.nn.relu(tf.matmul(dad, inputs))
         return output
 
-    def Laplacian_sharpening(self, x, name, training, DAD, dyna):
+    def Laplacian_sharpening(self, x, name, training, DAD, dyna, dyna_zero):
         inputs = self.GALA[name](x, training=training)
         dad = tf.sparse.to_dense(DAD)
         if use_dyna_adj:
-            dad = tf.math.multiply(dyna, dad)
+            dyna_inverse = 1-dyna_zero
+            dyna_inverse = tf.multiply(dyna, dyna_inverse)
+            dyna = tf.math.multiply(dyna, dad)
+            dyna_zero = tf.math.multiply(dyna_zero, dad)
+            dyna_inverse = tf.math.multiply(dyna_inverse, dad)
+            sum_dad = tf.reduce_sum(dad, 1, keepdims=True)
+            sum_dyna = tf.reduce_sum(dyna, 2, keepdims=True)
+            ratio = sum_dad/sum_dyna
+            dad_others = tf.math.multiply(dyna_zero, ratio) #
+            dad_noised = tf.math.multiply(dyna_inverse, ratio)
+            dad = dad_noised + dad_others
         output = tf.nn.relu(tf.matmul(dad, inputs))
         return output
 
-    def call(self, H, training=None, dyna=None):
+    def call(self, H, training=None, dyna=None, dyna_zero=None):
         for i in range(self.model_len):
             if i % 2 == 0:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm, dyna)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.s_DADsm, dyna, dyna_zero)
             else:
-                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm, dyna)
+                H = self.Laplacian_smoothing(H, 'enc%d' % i, training, self.t_DADsm, dyna, dyna_zero)
         self.H = H
         for i in range(self.model_len):
             if i % 2 == 0:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp, dyna)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.t_DADsp, dyna, dyna_zero)
             else:
-                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp, dyna)
+                H = self.Laplacian_sharpening(H, 'dec%d' % i, training, self.s_DADsp, dyna, dyna_zero)
         return H

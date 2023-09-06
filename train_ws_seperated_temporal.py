@@ -2,20 +2,21 @@ import os, time, argparse
 
 normalized_point = 1
 num_adj = 1
-batch = 64
+batch = 128
 time_input = 30  # 입력으로 사용되는 frame 수
 frame_interval = 15  # Pkl 파일에서의 입력 간격 (Ex. frame :0 ~ 100 있는 PKL, time_input 30, frame_interval 15 => 0~30/ 15~45/ 30~60/ 45~75 ...
 num_noise = 10
 
-load_model_j_name = 'weights/64_128_256_input_3_bone_polar_seperated_30_15_10_J.h5'
-load_model_b_name = 'weights/64_128_256_input_3_bone_polar_only_using_seperated_30_15_10_B.h5'
+load_model_j_name = 'weights/Normalized_dyna_weight_joint.h5'
+load_model_b_name = 'weights/Normalized_dyna_weight_joint.h5'
+save_model_name = "weights/64_128_256_input_3_bone_polar_seperated_{}_{}_{}".format(time_input, frame_interval,num_noise)
 home_path = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_dir", default="test", type=str)
 parser.add_argument("--save_model_name",
-                    default="weights/64_128_256_input_3_bone_polar_seperated_{}_{}_{}".format(time_input, frame_interval,
-                                                                                    num_noise), type=str)
+                    default=save_model_name, type=str)
 parser.add_argument("--load_model", action='store_true')
+parser.add_argument("--dyna_ratio", default=0.2, type=int)
 parser.add_argument("--test", action='store_false', help='for only_test')
 parser.add_argument("--vector_noise", action='store_true')
 parser.add_argument("--bone", action='store_true')
@@ -28,6 +29,7 @@ use_bone = args.bone
 use_dyna_adj = args.dyna_adj
 use_polar = args.polar
 input_size = args.input_size
+dyna_ratio = args.dyna_ratio
 
 import copy
 import numpy as np
@@ -307,14 +309,17 @@ if __name__ == '__main__':
                     noised_j, noised_b, _, _ = make_noise(feature_j, feature_b)
                     dyna_adj = np.tile(noised_j[:, :, 2].reshape(noised_j.shape[0], noised_j.shape[1], 1),
                                        (1, 1, 510)).transpose(0, 2, 1)
-                    # dyna_adj[dyna_adj>0] = 1
+                    dyna_adj[dyna_adj > 0] = 1
+                    dyna_adj[dyna_adj <= 0] = dyna_ratio
+                    dyna_zero = copy.deepcopy(dyna_adj)
+                    dyna_zero[dyna_adj < 1] = 0
                     noised_j[:, :, 2][noised_j[:, :, 2] > 0] = 1
                     if input_size == 2:
                         init_step(feature_j[:, :, 0:2], feature_b[:, :, 0:2], noised_j[:, :, 0:2], noised_b[:, :, 0:2],
-                                  weight_decay, k, dyna_adj)
+                                  weight_decay, k, dyna_adj, dyna_zero)
                     else:
                         init_step(feature_j[:, :, 0:2], feature_b[:, :, 0:2], noised_j, noised_b, weight_decay, k,
-                                  dyna_adj)
+                                  dyna_adj, dyna_zero)
                 step += 1
                 model_j.save_weights('{}_J.h5'.format(args.save_model_name), overwrite=True, save_format=None,
                                      options=None)

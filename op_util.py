@@ -16,6 +16,7 @@ import plot_output
 use_bone = train_ws_seperated_temporal.use_bone
 use_polar = train_ws_seperated_temporal.use_polar
 input_size = train_ws_seperated_temporal.input_size
+dyna_ratio = train_ws_seperated_temporal.dyna_ratio
 
 
 def norm_euclidean_distance(input, output, acc):
@@ -114,12 +115,12 @@ def Optimizer(model_j, model_b, LR):
     l = 5e1
     mu = 1.
 
-    @tf.function
-    def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj):
+    #@tf.function
+    def training(input_j, input_b, noised_joint, noised_bone, weight_decay, k, dyna_adj, dyna_zero):
         with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
-            generated_j = model_j(noised_joint, training=True, dyna=dyna_adj)
+            generated_j = model_j(noised_joint, training=True, dyna=dyna_adj, dyna_zero=dyna_zero)
             if use_bone:
-                generated_b = model_b(noised_bone, training=True, dyna=dyna_adj)
+                generated_b = model_b(noised_bone, training=True, dyna=dyna_adj, dyna_zero=dyna_zero)
                 # new_b = tf.py_function(joint_to_bone, inp=[generated_j], Tout=tf.float32)
                 # new_j = tf.py_function(bone_to_joint, inp=[generated_b], Tout=tf.float32)
                 # generated_j = (generated_j + new_j) / 2
@@ -142,26 +143,6 @@ def Optimizer(model_j, model_b, LR):
             gradients_b = tape2.gradient(total_loss_b, model_b.trainable_variables)
             b_optimizer.apply_gradients(zip(gradients_b, model_b.trainable_variables))
             train_loss_b.update_state(loss_b)
-
-    # @tf.function
-    # def finetuning(input, weight_decay, k):
-    #     with tf.GradientTape() as tape:
-    #         generated = model(input, training=True)
-    #         loss = tf.reduce_sum(tf.square(input - generated)) / 2 / input.shape[0]
-    #
-    #         H = model.H
-    #         HHT = tf.matmul(H, H, transpose_a=True)
-    #         s, u, v = SVD.SVD(tf.expand_dims(mu * tf.eye(HHT.shape[0]) + l * HHT, 0), k)
-    #         scc_loss = mu * l / 2 * tf.linalg.trace(
-    #             tf.matmul(tf.squeeze(tf.matmul(v, u / tf.reshape(s, [1, 1, k]), transpose_b=True)), HHT))
-    #         total_loss = loss + scc_loss
-    #
-    #         if weight_decay > 0.:
-    #             total_loss += tf.add_n([tf.reduce_sum(tf.square(v)) * weight_decay for v in model.trainable_variables])
-    #
-    #     gradients = tape.gradient(total_loss, model.trainable_variables)
-    #     optimizer_tune.apply_gradients(zip(gradients, model.trainable_variables))
-    #    train_loss.update_state(loss)
 
     def validate2(noised_j, noised_b, noised_frame, noised_joint, org_j, batch, dyna_adj):
         generated_j = model_j(noised_j, training=False, dyna=dyna_adj)  ## 수정필요
@@ -205,10 +186,12 @@ def Optimizer(model_j, model_b, LR):
                 num_person = 0
                 rnd_frame = noising_frames[num][num_person]
                 rnd_joint = noising_joints[num][num_person]
-                # output_j = make_joint_or_bone_pkl(annot_j, annot_j, num, num_person, model_j, 'joint')
-                # if len(data_annot_j[num]['keypoint'][num_person]) == len(output_j):
-                #     # joint_data['annotations'][num]['keypoint'][num_person] = output_j
-                #     joint_data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output_j[rnd_frame, rnd_joint, :]
+                annot_j[num]['keypoint_score'][num_person][rnd_frame,rnd_joint] = 0
+                output_j = make_joint_or_bone_pkl(annot_j, annot_j, num, num_person, model_j, 'joint')
+
+                if len(data_annot_j[num]['keypoint'][num_person]) == len(output_j):
+                    joint_data['annotations'][num]['keypoint'][num_person] = output_j
+                    # joint_data['annotations'][num]['keypoint'][num_person][rnd_frame, rnd_joint, :] = output_j[rnd_frame, rnd_joint, :]
 
                 if use_bone:
                     output_b = make_joint_or_bone_pkl(annot_b, annot_j, num, num_person, model_b, 'bone')
@@ -247,11 +230,11 @@ def Optimizer(model_j, model_b, LR):
                 '''
 
 
-        # with open('Denoising_point_j.pkl', 'wb') as f:
-        #     pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
+        with open('Denoising_j.pkl', 'wb') as f:
+            pickle.dump(joint_data, f, pickle.HIGHEST_PROTOCOL)
 
-        with open('Denoising_b_polar_only.pkl', 'wb') as f:
-            pickle.dump(bone_data, f, pickle.HIGHEST_PROTOCOL)
+        # with open('Denoising_b_polar_only.pkl', 'wb') as f:
+        #     pickle.dump(bone_data, f, pickle.HIGHEST_PROTOCOL)
 
     def make_joint_or_bone_pkl(inp, inp_j, num, num_person, model, inp_str):
         inputs = inp[num]['keypoint'][num_person]
@@ -268,12 +251,17 @@ def Optimizer(model_j, model_b, LR):
         org_inp_2 = inputs_org[-time:].reshape(-1, 17 * time, 2)
         input = np.append(input_1, input_2, axis=0)
         org = np.append(org_inp_1, org_inp_2, axis=0)
-        # input = train_ws_seperated_temporal.normalize_data(input) # Bone 일 때 확인필요
+        dyna_zero = np.tile(input[:, :, 2].reshape(input.shape[0], input.shape[1], 1),
+                (1, 1, 510)).transpose(0, 2, 1).astype(np.float32)
+        dyna_zero[dyna_zero>0] = 1
+        dyna_adj = copy.deepcopy(dyna_zero)
+        dyna_adj[dyna_adj<=0] = dyna_ratio
+        input = train_ws_seperated_temporal.normalize_data(input) # Bone 일 때 확인필요
 
         if input_size == 3:
-            model_out = model(input, training=False)
+            model_out = model(input, training=False, dyna=dyna_adj, dyna_zero=dyna_zero)
         else:
-            model_out = model(input[:, :, 0:2], training=False)
+            model_out = model(input[:, :, 0:2], training=False, dyna=dyna_adj, dyna_zero=dyna_zero)
 
         if inp_str == 'bone':
 
